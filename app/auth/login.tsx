@@ -36,6 +36,70 @@ export default function LoginScreen() {
   // });
   
 
+  // const handleLoginValidation = async () => {
+  //   let isValid = true;
+  
+  //   setEmailError("");
+  //   setPasswordError("");
+  
+  //   if (!emailAddress.trim()) {
+  //     setEmailError("Email is required");
+  //     isValid = false;
+  //   } else if (!validateEmail(emailAddress)) {
+  //     setEmailError("Invalid email format");
+  //     isValid = false;
+  //   }
+  
+  //   if (!password) {
+  //     setPasswordError("Password is required");
+  //     isValid = false;
+  //   } else if (!validatePassword(password)) {
+  //     setPasswordError("Password must be at least 6 characters with letters and numbers");
+  //     isValid = false;
+  //   }
+  
+  //   if (!isValid) return;
+  
+  //   try {
+  //     const response = await fetch("http://192.168.100.47:4000/api/auth/login", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         email: emailAddress,
+  //         password: password,
+  //       }),
+  //     });
+  
+  //     const data = await response.json();
+  
+  //     if (!response.ok) {
+  //       Alert.alert("Login Failed", data.message || "Something went wrong");
+  //       return;
+  //     }
+  
+  //     // ✅ Save token to AsyncStorage
+  //     await AsyncStorage.setItem("token", data.token);
+  
+  //     // Optionally, save user details too
+  //     await AsyncStorage.setItem("user", JSON.stringify(data.user));
+  
+  //     // Navigate to profile setup screen
+  //     router.replace("/Profile/profileSetUp");
+  
+  //   } catch (error) {
+  //     console.error("Login error:", error);
+  //     Alert.alert("Login Error", "An unexpected error occurred.");
+  //   }
+  // };
+  
+  
+
+
+
+
+
   const handleLoginValidation = async () => {
     let isValid = true;
   
@@ -61,7 +125,7 @@ export default function LoginScreen() {
     if (!isValid) return;
   
     try {
-      const response = await fetch("http://192.168.100.47:4000/api/auth/login", {
+      const response = await fetch("http://192.168.43.62:4000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -79,13 +143,16 @@ export default function LoginScreen() {
         return;
       }
   
-      // ✅ Save token to AsyncStorage
-      await AsyncStorage.setItem("token", data.token);
+      // ✅ Save token and user info to AsyncStorage
+      if (data.token) {
+        await AsyncStorage.setItem("token", data.token);
+      }
   
-      // Optionally, save user details too
-      await AsyncStorage.setItem("user", JSON.stringify(data.user));
+      if (data.user) {
+        await AsyncStorage.setItem("user", JSON.stringify(data.user));
+      }
   
-      // Navigate to profile setup screen
+      // Navigate to profile setup
       router.replace("/Profile/profileSetUp");
   
     } catch (error) {
@@ -93,7 +160,6 @@ export default function LoginScreen() {
       Alert.alert("Login Error", "An unexpected error occurred.");
     }
   };
-  
   
 
   const validatePassword = (password: string) => {

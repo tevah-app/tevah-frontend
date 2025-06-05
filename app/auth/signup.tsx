@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import AuthHeader from "../components/AuthHeader";
 import VerifyEmail from "./verifyEmail";
+import { AsyncStorage } from "react-native";
 
 export default function SignUpScreen() {
   const { isLoaded, signUp } = useSignUp();
@@ -59,6 +60,71 @@ export default function SignUpScreen() {
   //     }
   //   }
   // };
+  // const handleSignUpValidation = async () => {
+  //   let isValid = true;
+  
+  //   // Clear previous errors
+  //   setEmailError("");
+  //   setPasswordError("");
+  //   setFirstNameError("");
+  //   setLastNameError("");
+  
+  //   // Validate First Name
+  //   if (!firstName.trim()) {
+  //     setFirstNameError("First name is required");
+  //     isValid = false;
+  //   }
+  
+  //   // Validate Last Name
+  //   if (!lastName.trim()) {
+  //     setLastNameError("Last name is required");
+  //     isValid = false;
+  //   }
+  
+  //   // Validate Email
+  //   if (!emailAddress.trim()) {
+  //     setEmailError("Email is required");
+  //     isValid = false;
+  //   } else if (!validateEmail(emailAddress)) {
+  //     setEmailError("Invalid email format");
+  //     isValid = false;
+  //   }
+  
+  //   // Validate Password
+  //   if (!password) {
+  //     setPasswordError("Password is required");
+  //     isValid = false;
+  //   } else if (!validatePassword(password)) {
+  //     setPasswordError("Password must be at least 6 characters long and include both letters and numbers");
+  //     isValid = false;
+  //   }
+  
+  //   if (isValid) {
+  //     try {
+  //       const response = await fetch("http://192.168.43.62:4000/api/auth/register", {
+  //         method: "POST",
+  //         headers: { "Content-Type": "application/json" },
+  //         body: JSON.stringify({ email: emailAddress, password, firstName, lastName }),
+  //       });
+  
+  //       const data = await response.json();
+  
+  //       if (data.success) {
+  //         setShowModal(true); // Show verification modal
+  //       } else {
+  //         alert(data.message || "Something went wrong");
+  //       }
+  //     } catch (err) {
+  //       console.error("Signup error:", err);
+  //       alert("Signup failed. Try again.");
+  //     }
+  //   }
+  // };
+  
+
+
+
+
   const handleSignUpValidation = async () => {
     let isValid = true;
   
@@ -68,19 +134,17 @@ export default function SignUpScreen() {
     setFirstNameError("");
     setLastNameError("");
   
-    // Validate First Name
+    // Validation logic
     if (!firstName.trim()) {
       setFirstNameError("First name is required");
       isValid = false;
     }
   
-    // Validate Last Name
     if (!lastName.trim()) {
       setLastNameError("Last name is required");
       isValid = false;
     }
   
-    // Validate Email
     if (!emailAddress.trim()) {
       setEmailError("Email is required");
       isValid = false;
@@ -89,7 +153,6 @@ export default function SignUpScreen() {
       isValid = false;
     }
   
-    // Validate Password
     if (!password) {
       setPasswordError("Password is required");
       isValid = false;
@@ -109,7 +172,12 @@ export default function SignUpScreen() {
         const data = await response.json();
   
         if (data.success) {
-          setShowModal(true); // Show verification modal
+          // 🔐 Save token (if returned from backend)
+          if (data.token) {
+            await AsyncStorage.setItem("token", data.token);
+          }
+  
+          setShowModal(true); // Show verify modal
         } else {
           alert(data.message || "Something went wrong");
         }

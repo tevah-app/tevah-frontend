@@ -612,6 +612,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import InfoCard from "../components/successfulCard";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 export default function CodeVerification() {
   const router = useRouter();
@@ -738,12 +740,32 @@ export default function CodeVerification() {
       console.log("📦 Response from backend:", data);
 
       if (data.success) {
-        console.log("✅ Code verified. Triggering bounce drop success...");
-        triggerBounceDrop("success");
-      } else {
-        Alert.alert("Invalid Code", data.message || "Verification failed.");
-        triggerBounceDrop("failure");
+        console.log("✅ Code verified. Logging in...");
+      
+        // Log in to get token
+        const loginResponse = await fetch("http://192.168.43.62:4000/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: emailAddress,
+            password: password,
+          }),
+        });
+      
+        const loginData = await loginResponse.json();
+      
+        if (loginData.success) {
+          await AsyncStorage.setItem("token", loginData.token);
+          await AsyncStorage.setItem("user", JSON.stringify(loginData.user));
+      
+          console.log("🔐 Token stored. Proceeding...");
+          triggerBounceDrop("success");
+        } else {
+          Alert.alert("Login Failed", loginData.message || "Try signing in manually.");
+          triggerBounceDrop("failure");
+        }
       }
+      
     } catch (err) {
       console.error("❌ Error verifying code:", err);
       Alert.alert("Server Error", "Unable to verify code. Try again later.");
@@ -756,7 +778,7 @@ export default function CodeVerification() {
   const handleResend = async () => {
     setIsResending(true);
     try {
-      const response = await fetch("http://192.168.43.62:4000/api/resend-verification-email", {
+      const response = await fetch("http://192.168.43.62:4000/api/auth/resend-verification-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: emailAddress }),

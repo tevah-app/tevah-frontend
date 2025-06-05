@@ -20,6 +20,10 @@ import Images from "./ImagesAvatars";
 import SlideUpSetProfileImageModal from "./SetProfileImageModal";
 import SuccessfulCard from "../components/successfulCard";
 import FailureCard from "../components/failureCard";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ CORRECT
+
+import { Asset } from "expo-asset";
 
 const avatarTabs = ["Cartoon", "Cute Avatars", "Images"];
 
@@ -79,15 +83,145 @@ const AvatarSelection = () => {
     });
   };
 
-  const handleConfirm = () => {
+  // const handleConfirm = () => {
+  //   setIsModalVisible(false);
+  //   if (selectedAvatar) {
+  //     setConfirmedAvatar(selectedAvatar);
+  //     triggerBounceDrop("success");
+  //   } else {
+  //     triggerBounceDrop("failure");
+  //   }
+  // };
+
+
+  const uploadAvatarToBackend = async (uri: string, token: string) => {
+    const fileExtension = uri.split(".").pop()?.toLowerCase() || "jpg";
+    const mimeType = `image/${fileExtension === "jpg" ? "jpeg" : fileExtension}`;
+  
+    const formData = new FormData();
+    formData.append("avatar", {
+      uri,
+      name: `avatar.${fileExtension}`,
+      type: mimeType,
+    } as any);
+  
+    const res = await fetch("http://192.168.43.62:4000/api/auth/update-avatar", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+  
+    const json = await res.json();
+  
+    if (!json.success) {
+      throw new Error(json.message || "Failed to upload avatar");
+    }
+  
+    return json.avatarUrl; // this is the Cloudinary URL returned by your backend
+  };
+  
+  
+
+
+  // const handleConfirm = async () => {
+  //   setIsModalVisible(false);
+  
+  //   if (!selectedAvatar || typeof selectedAvatar !== "string") {
+  //     triggerBounceDrop("failure");
+  //     return;
+  //   }
+  
+  //   try {
+  //     const token = await AsyncStorage.getItem("token");
+  //     if (!token) {
+  //       triggerBounceDrop("failure");
+  //       return;
+  //     }
+  
+  //     const avatarUrl = await uploadAvatarToBackend(selectedAvatar, token);
+  
+  //     const response = await axios.post(
+  //       "http://192.168.43.62:4000/api/auth/complete-profile",
+  //       { avatarUpload: avatarUrl },
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     );
+  
+  //     if (response.data.success) {
+  //       setConfirmedAvatar(avatarUrl);
+  //       triggerBounceDrop("success");
+  //     } else {
+  //       triggerBounceDrop("failure");
+  //     }
+  //   } catch (error: any) {
+  //     console.error("Avatar submission failed:", error);
+  //     triggerBounceDrop("failure");
+  //   }
+  // };
+  
+
+
+  const handleConfirm = async () => {
     setIsModalVisible(false);
-    if (selectedAvatar) {
-      setConfirmedAvatar(selectedAvatar);
-      triggerBounceDrop("success");
-    } else {
+  
+    if (!selectedAvatar) {
+      triggerBounceDrop("failure");
+      return;
+    }
+  
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) {
+        triggerBounceDrop("failure");
+        return;
+      }
+  
+      let fileUri: string;
+  
+      if (typeof selectedAvatar === "string") {
+        fileUri = selectedAvatar;
+      } else {
+        // Ensure it's a static resource (require)
+        const assetModule = selectedAvatar as number;
+      
+        const asset = Asset.fromModule(assetModule);
+        await asset.downloadAsync();
+        fileUri = asset.localUri || asset.uri;
+      
+        if (!fileUri) {
+          throw new Error("Failed to resolve local file URI from asset");
+        }
+      }
+  
+      const avatarUrl = await uploadAvatarToBackend(fileUri, token);
+  
+      const response = await axios.post(
+        "http://192.168.43.62:4000/api/auth/complete-profile",
+        { avatarUpload: avatarUrl },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+  
+      if (response.data.success) {
+        setConfirmedAvatar(avatarUrl);
+        triggerBounceDrop("success");
+      } else {
+        triggerBounceDrop("failure");
+      }
+    } catch (error: any) {
+      console.error("Avatar submission failed:", error);
       triggerBounceDrop("failure");
     }
   };
+  
 
   const renderAvatarRow = (
     data: { id: string; src: ImageSourcePropType | string }[]
