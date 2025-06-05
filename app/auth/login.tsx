@@ -1,14 +1,18 @@
-
-
-
-
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from "expo-router";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useState } from 'react';
-import { Text, TouchableOpacity, View, Image, TextInput, Alert, BackHandler } from 'react-native';
-import AuthHeader from '../components/AuthHeader';
-import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import React, { useEffect, useState } from "react";
+import {
+  Text,
+  TouchableOpacity,
+  View,
+  Image,
+  TextInput,
+  Alert,
+  BackHandler,
+} from "react-native";
+import AuthHeader from "../components/AuthHeader";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 
 export default function LoginScreen() {
   const [emailAddress, setEmailAddress] = useState("");
@@ -23,89 +27,12 @@ export default function LoginScreen() {
     return emailRegex.test(email);
   };
 
-
-  // useFocusEffect(() => {
-  //   const onBackPress = () => {
-  //     // Prevent going back
-  //     return true;
-  //   };
-  
-  //   const backHandler = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-  
-  //   return () => backHandler.remove(); // ✅ Proper cleanup
-  // });
-  
-
-  // const handleLoginValidation = async () => {
-  //   let isValid = true;
-  
-  //   setEmailError("");
-  //   setPasswordError("");
-  
-  //   if (!emailAddress.trim()) {
-  //     setEmailError("Email is required");
-  //     isValid = false;
-  //   } else if (!validateEmail(emailAddress)) {
-  //     setEmailError("Invalid email format");
-  //     isValid = false;
-  //   }
-  
-  //   if (!password) {
-  //     setPasswordError("Password is required");
-  //     isValid = false;
-  //   } else if (!validatePassword(password)) {
-  //     setPasswordError("Password must be at least 6 characters with letters and numbers");
-  //     isValid = false;
-  //   }
-  
-  //   if (!isValid) return;
-  
-  //   try {
-  //     const response = await fetch("http://192.168.100.47:4000/api/auth/login", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         email: emailAddress,
-  //         password: password,
-  //       }),
-  //     });
-  
-  //     const data = await response.json();
-  
-  //     if (!response.ok) {
-  //       Alert.alert("Login Failed", data.message || "Something went wrong");
-  //       return;
-  //     }
-  
-  //     // ✅ Save token to AsyncStorage
-  //     await AsyncStorage.setItem("token", data.token);
-  
-  //     // Optionally, save user details too
-  //     await AsyncStorage.setItem("user", JSON.stringify(data.user));
-  
-  //     // Navigate to profile setup screen
-  //     router.replace("/Profile/profileSetUp");
-  
-  //   } catch (error) {
-  //     console.error("Login error:", error);
-  //     Alert.alert("Login Error", "An unexpected error occurred.");
-  //   }
-  // };
-  
-  
-
-
-
-
-
   const handleLoginValidation = async () => {
     let isValid = true;
-  
+
     setEmailError("");
     setPasswordError("");
-  
+
     if (!emailAddress.trim()) {
       setEmailError("Email is required");
       isValid = false;
@@ -113,17 +40,19 @@ export default function LoginScreen() {
       setEmailError("Invalid email format");
       isValid = false;
     }
-  
+
     if (!password) {
       setPasswordError("Password is required");
       isValid = false;
     } else if (!validatePassword(password)) {
-      setPasswordError("Password must be at least 6 characters with letters and numbers");
+      setPasswordError(
+        "Password must be at least 6 characters with letters and numbers"
+      );
       isValid = false;
     }
-  
+
     if (!isValid) return;
-  
+
     try {
       const response = await fetch("http://192.168.43.62:4000/api/auth/login", {
         method: "POST",
@@ -135,38 +64,37 @@ export default function LoginScreen() {
           password: password,
         }),
       });
-  
+
       const data = await response.json();
-  
+
       if (!response.ok) {
         Alert.alert("Login Failed", data.message || "Something went wrong");
         return;
       }
-  
+
       // ✅ Save token and user info to AsyncStorage
       if (data.token) {
         await AsyncStorage.setItem("token", data.token);
       }
-  
+
       if (data.user) {
         await AsyncStorage.setItem("user", JSON.stringify(data.user));
       }
-  
+
       // Navigate to profile setup
       router.replace("/Profile/profileSetUp");
-  
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Login Error", "An unexpected error occurred.");
     }
   };
-  
 
   const validatePassword = (password: string) => {
-    return password.length >= 6 && /[A-Za-z]/.test(password) && /\d/.test(password);
+    return (
+      password.length >= 6 && /[A-Za-z]/.test(password) && /\d/.test(password)
+    );
   };
 
-  
   return (
     <View className="flex-1 bg-[#FCFCFD]">
       <AuthHeader title="Sign In" />
@@ -175,13 +103,16 @@ export default function LoginScreen() {
           <Text className="font-rubik-semibold text-[#1D2939] text-star text-[40px]">
             Great to see you {"\n"}again{" "}
             <Image
-              source={{ uri: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f44b/512.gif" }}
+              source={{
+                uri: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f44b/512.gif",
+              }}
               style={{ width: 32, height: 32 }}
               resizeMode="contain"
             />
           </Text>
           <Text className="mt-2 font-rubik text-[14px] w-full text-[#344054] text-start">
-            Log in to pick up where you left off. Your sermons, playlists, and community await.
+            Log in to pick up where you left off. Your sermons, playlists, and
+            community await.
           </Text>
         </View>
 

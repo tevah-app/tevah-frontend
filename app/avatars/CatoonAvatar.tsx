@@ -1,6 +1,6 @@
 import React from "react";
 import { ImageSourcePropType } from "react-native";
-import { renderAvatarRowProps } from "./index";
+  import { RenderAvatarRowProps } from "@/.expo/types/avatarTypes";
 
 const cartoonAvatars: { id: string; src: ImageSourcePropType }[] = [
   { id: "c1", src: require("../../assets/images/1.png") },
@@ -23,7 +23,7 @@ const cartoonAvatars: { id: string; src: ImageSourcePropType }[] = [
   { id: "c18", src: require("../../assets/images/11.png") },
 ];
 
-const CartoonAvatar = ({ renderAvatarRow }: renderAvatarRowProps) => {
+const CartoonAvatar = ({ renderAvatarRow }: RenderAvatarRowProps) => {
   return renderAvatarRow(cartoonAvatars);
 };
 

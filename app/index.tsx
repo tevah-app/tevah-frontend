@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -44,7 +42,8 @@ const slides = [
     id: "4",
     image: require("../assets/images/Rectangle1.png"),
     title: "Faith for the whole family",
-    description: "Bible animations for kids, deep theology studies for adults, We’ve got you all covered",
+    description:
+      "Bible animations for kids, deep theology studies for adults, We’ve got you all covered",
   },
 ];
 
@@ -53,9 +52,15 @@ function Welcome() {
   const currentIndexRef = useRef(0);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const { startOAuthFlow: startGoogleAuth } = useOAuth({ strategy: "oauth_google" });
-  const { startOAuthFlow: startFacebookAuth } = useOAuth({ strategy: "oauth_facebook" });
-  const { startOAuthFlow: startAppleAuth } = useOAuth({ strategy: "oauth_apple" });
+  const { startOAuthFlow: startGoogleAuth } = useOAuth({
+    strategy: "oauth_google",
+  });
+  const { startOAuthFlow: startFacebookAuth } = useOAuth({
+    strategy: "oauth_facebook",
+  });
+  const { startOAuthFlow: startAppleAuth } = useOAuth({
+    strategy: "oauth_apple",
+  });
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -69,7 +74,9 @@ function Welcome() {
     return () => clearInterval(interval);
   }, []);
 
-  const onMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const onMomentumScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>
+  ) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
     currentIndexRef.current = index;
     setCurrentIndex(index);
@@ -96,13 +103,13 @@ function Welcome() {
         resizeMode="cover"
       />
       <View className=" bg-white rounded-t-3xl mt-[-19px] items-center w-full px-4 py-4">
-      {/* <Image
+        {/* <Image
           source={require("../assets/images/Grabber.png")}
           className="w-12 h-2 mt-0 mb-2 rounded-full"
         /> */}
 
-<View className="w-[36px] h-[4px] bg-gray-300 self-center rounded-full mb-6 mt-0" />
-     
+        <View className="w-[36px] h-[4px] bg-gray-300 self-center rounded-full mb-6 mt-0" />
+
         <Text className="text-[#1D2939] text-[30px] font-bold text-center ">
           {item.title}
         </Text>
@@ -146,7 +153,9 @@ function Welcome() {
 
       {/* Bottom Panel */}
       <View className="absolute top-[500px]  left-0 right-0 items-center w-full px-4">
-        <Text className="text-[#344054] text-xs font-semibold text-center mt-4 ">GET STARTED WITH</Text>
+        <Text className="text-[#344054] text-xs font-semibold text-center mt-4 ">
+          GET STARTED WITH
+        </Text>
         <View className="flex-row  mt-6 gap-[16px]">
           <TouchableOpacity onPress={() => handleSignIn(startFacebookAuth)}>
             <Image
@@ -190,7 +199,9 @@ function Welcome() {
           onPress={() => router.push("/auth/signup")}
           className="w-[90%] max-w-[400px] h-11 rounded-full bg-[#090E24] justify-center items-center mt-6 active:scale-[0.97]"
         >
-          <Text className="text-white font-semibold">Get Started with Email</Text>
+          <Text className="text-white font-semibold">
+            Get Started with Email
+          </Text>
         </Pressable>
 
         <Pressable onPress={() => router.push("/auth/login")} className="mt-6">
@@ -202,5 +213,3 @@ function Welcome() {
 }
 
 export default Welcome;
-
-

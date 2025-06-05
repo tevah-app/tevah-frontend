@@ -1,42 +1,15 @@
-// import React from 'react';
-// import { View } from 'react-native';
-
-// interface ProgressBarProps {
-//   currentStep: number;
-//   totalSteps: number;
-// }
-
-// export default function ProgressBar({ currentStep, totalSteps }: ProgressBarProps) {
-//   return (
-//     <View className="flex flex-row items-center w-[333px] h-[8px] mt-2 mb-2">
-//       {[...Array(totalSteps)].map((_, i) => (
-//         <View
-//           key={i}
-//           className={
-//             `h-[8px] rounded-[5px] mx-0.5 "${i === 0 ? 'w-[16px]' : 'flex-1'}" ` +
-//             (i < currentStep ? 'bg-[#090E24]' : 'bg-[#E0E0FF]')
-//           }
-//           style={{ flex: i === 0 ? undefined : 1, width: i === 0 ? 16 : undefined }}
-//         />
-//       ))}
-//     </View>
-//   );
-// } 
-
-
-
-
-
-
-import React from 'react';
-import { View } from 'react-native';
+import React from "react";
+import { View } from "react-native";
 
 interface ProgressBarProps {
   currentStep: number;
   totalSteps: number;
 }
 
-export default function ProgressBar({ currentStep, totalSteps }: ProgressBarProps) {
+export default function ProgressBar({
+  currentStep,
+  totalSteps,
+}: ProgressBarProps) {
   const progress = (currentStep / totalSteps) * 100;
 
   return (
@@ -61,4 +34,3 @@ export default function ProgressBar({ currentStep, totalSteps }: ProgressBarProp
     </View>
   );
 }
-
