@@ -91,10 +91,10 @@ export default function AgeInputScreen() {
           Tell us your age
         </Text>
         <TouchableOpacity
-          className="w-[333px] h-[56px] bg-white rounded-2xl shadow-md justify-center items-center mb-8 border border-[#E0E0FF]"
+          className="w-[333px] h-[56px] bg-white rounded-2xl shadow-md justify-center items-center mb-8 border border-[#6663FD]"
           onPress={() => setShowPicker(true)}
         >
-          <Text className="text-lg text-[#1D2939]">
+          <Text className="text-[16px] font-rubik  text-[#1D2939]">
             {date
               ? date.toLocaleDateString(undefined, {
                   year: "numeric",
@@ -115,7 +115,7 @@ export default function AgeInputScreen() {
         )}
       </View>
 
-      <View className="w-full px-6 mb-8">
+      <View className="w-full px-6 mb-16">
         <TouchableOpacity
           onPress={handleNext}
           className={`bg-[#090E24] rounded-full w-full h-[48px] items-center justify-center ${
@@ -131,3 +131,8 @@ export default function AgeInputScreen() {
     </View>
   );
 }
+
+
+
+
+

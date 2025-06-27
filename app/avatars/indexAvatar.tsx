@@ -1,5 +1,3 @@
-
-
 import React, { useRef, useState } from "react";
 import {
   Image,
@@ -30,9 +28,13 @@ const avatarTabs = ["Cartoon", "Cute Avatars", "Images"];
 const AvatarSelection = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("Cartoon");
-  const [selectedAvatar, setSelectedAvatar] = useState<ImageSourcePropType | string | null>(null);
+  const [selectedAvatar, setSelectedAvatar] = useState<
+    ImageSourcePropType | string | null
+  >(null);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [confirmedAvatar, setConfirmedAvatar] = useState<ImageSourcePropType | string | null>(null);
+  const [confirmedAvatar, setConfirmedAvatar] = useState<
+    ImageSourcePropType | string | null
+  >(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const dropdownAnim = useRef(new RNAnimated.Value(-200)).current;
@@ -64,7 +66,7 @@ const AvatarSelection = () => {
       }).start(() => {
         if (type === "success") {
           setTimeout(() => {
-            router.replace("/Profile/ProfileSwitch");
+            router.replace("/categories/HomeScreen");
           }, 600);
         }
       });
@@ -93,113 +95,74 @@ const AvatarSelection = () => {
   //   }
   // };
 
-
   const uploadAvatarToBackend = async (uri: string, token: string) => {
     const fileExtension = uri.split(".").pop()?.toLowerCase() || "jpg";
-    const mimeType = `image/${fileExtension === "jpg" ? "jpeg" : fileExtension}`;
-  
+    const mimeType = `image/${
+      fileExtension === "jpg" ? "jpeg" : fileExtension
+    }`;
+
     const formData = new FormData();
     formData.append("avatar", {
       uri,
       name: `avatar.${fileExtension}`,
       type: mimeType,
     } as any);
-  
-    const res = await fetch("http://192.168.43.62:4000/api/auth/update-avatar", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-  
+
+    const res = await fetch(
+      "http://192.168.43.62:4000/api/auth/update-avatar",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
+
     const json = await res.json();
-  
+
     if (!json.success) {
       throw new Error(json.message || "Failed to upload avatar");
     }
-  
+
     return json.avatarUrl; // this is the Cloudinary URL returned by your backend
   };
-  
-  
-
-
-  // const handleConfirm = async () => {
-  //   setIsModalVisible(false);
-  
-  //   if (!selectedAvatar || typeof selectedAvatar !== "string") {
-  //     triggerBounceDrop("failure");
-  //     return;
-  //   }
-  
-  //   try {
-  //     const token = await AsyncStorage.getItem("token");
-  //     if (!token) {
-  //       triggerBounceDrop("failure");
-  //       return;
-  //     }
-  
-  //     const avatarUrl = await uploadAvatarToBackend(selectedAvatar, token);
-  
-  //     const response = await axios.post(
-  //       "http://192.168.43.62:4000/api/auth/complete-profile",
-  //       { avatarUpload: avatarUrl },
-  //       {
-  //         headers: {
-  //           Authorization: `Bearer ${token}`,
-  //         },
-  //       }
-  //     );
-  
-  //     if (response.data.success) {
-  //       setConfirmedAvatar(avatarUrl);
-  //       triggerBounceDrop("success");
-  //     } else {
-  //       triggerBounceDrop("failure");
-  //     }
-  //   } catch (error: any) {
-  //     console.error("Avatar submission failed:", error);
-  //     triggerBounceDrop("failure");
-  //   }
-  // };
-  
-
 
   const handleConfirm = async () => {
     setIsModalVisible(false);
-  
+
     if (!selectedAvatar) {
       triggerBounceDrop("failure");
       return;
     }
-  
+
     try {
       const token = await AsyncStorage.getItem("token");
       if (!token) {
         triggerBounceDrop("failure");
         return;
       }
-  
+
       let fileUri: string;
-  
+
       if (typeof selectedAvatar === "string") {
         fileUri = selectedAvatar;
       } else {
         // Ensure it's a static resource (require)
         const assetModule = selectedAvatar as number;
-      
+
         const asset = Asset.fromModule(assetModule);
         await asset.downloadAsync();
         fileUri = asset.localUri || asset.uri;
-      
+
         if (!fileUri) {
           throw new Error("Failed to resolve local file URI from asset");
         }
       }
-  
+
       const avatarUrl = await uploadAvatarToBackend(fileUri, token);
-  
+      setConfirmedAvatar(avatarUrl);
+
       const response = await axios.post(
         "http://192.168.43.62:4000/api/auth/complete-profile",
         { avatarUpload: avatarUrl },
@@ -209,7 +172,7 @@ const AvatarSelection = () => {
           },
         }
       );
-  
+
       if (response.data.success) {
         setConfirmedAvatar(avatarUrl);
         triggerBounceDrop("success");
@@ -221,7 +184,6 @@ const AvatarSelection = () => {
       triggerBounceDrop("failure");
     }
   };
-  
 
   const renderAvatarRow = (
     data: { id: string; src: ImageSourcePropType | string }[]
@@ -359,18 +321,6 @@ const AvatarSelection = () => {
 };
 
 export default AvatarSelection;
-
-
-
-
-
-
-
-
-
-
-
-
 
 // import {
 //   Image,

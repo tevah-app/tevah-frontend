@@ -196,7 +196,7 @@ function Welcome() {
         </View>
 
         <Pressable
-          onPress={() => router.push("/auth/signup")}
+          onPress={() => router.push("/categories/HomeScreen")}
           className="w-[90%] max-w-[400px] h-11 rounded-full bg-[#090E24] justify-center items-center mt-6 active:scale-[0.97]"
         >
           <Text className="text-white font-semibold">
@@ -204,7 +204,7 @@ function Welcome() {
           </Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push("/auth/login")} className="mt-6">
+        <Pressable onPress={() => router.push("/reels/Reelsviewscroll")} className="mt-6">
           <Text className="text-sm ">Sign In</Text>
         </Pressable>
       </View>
