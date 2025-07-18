@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ CORRECT
 import { API_BASE_URL } from "../utils/api";
+import Constants from "expo-constants";
 
 type Suggestion = {
   id: string;
@@ -24,6 +25,7 @@ type Suggestion = {
 
 function ChurchNameAndLocation() {
   const [search, setSearch] = useState("");
+  const API_BASE_URL = Constants.expoConfig?.extra?.API_URL;
   const [churches, setChurches] = useState<Suggestion[]>([]);
   const [filteredSuggestions, setFilteredSuggestions] = useState<Suggestion[]>(
     []
@@ -47,7 +49,7 @@ function ChurchNameAndLocation() {
        
 
         const res = await fetch(
-          `http://${API_BASE_URL}/api/churches?lat=${lat}&lng=${lng}`
+          `${API_BASE_URL}/api/churches?lat=${lat}&lng=${lng}`
         );
         const data = await res.json();
 
@@ -125,7 +127,7 @@ function ChurchNameAndLocation() {
         
         if (loc) {
           const res = await fetch(
-            `http://${API_BASE_URL}/api/churches?lat=${loc.lat}&lng=${loc.lng}`
+            `${API_BASE_URL}/api/churches?lat=${loc.lat}&lng=${loc.lng}`
           );
           const churchData = await res.json();
 
@@ -158,7 +160,7 @@ function ChurchNameAndLocation() {
 
       
       const response = await axios.post(
-        `http://${API_BASE_URL}/api/auth/complete-profile`,
+        `${API_BASE_URL}/api/auth/complete-profile`,
         {
           location: selectedItem.name,
         },

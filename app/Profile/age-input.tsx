@@ -7,6 +7,7 @@ import ProgressBar from "../components/ProgressBar";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ CORRECT
 import { API_BASE_URL } from "../utils/api";
+import Constants from "expo-constants";
 
 export default function AgeInputScreen() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function AgeInputScreen() {
 
   const calculateAge = (dob: Date): number => {
     const today = new Date();
+    const API_BASE_URL = Constants.expoConfig?.extra?.API_URL;
     let age = today.getFullYear() - dob.getFullYear();
     const monthDiff = today.getMonth() - dob.getMonth();
 
@@ -41,7 +43,7 @@ export default function AgeInputScreen() {
       // Replace with real token logic
 
       const response = await axios.post(
-        `http://${API_BASE_URL}/api/auth/complete-profile`,
+        `${API_BASE_URL}/api/auth/complete-profile`,
         { age },
         {
           headers: {

@@ -23,11 +23,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ COR
 
 import { Asset } from "expo-asset";
 import { API_BASE_URL } from "../utils/api";
+import Constants from "expo-constants";
 
 const avatarTabs = ["Cartoon", "Cute Avatars", "Images"];
 
 const AvatarSelection = () => {
   const router = useRouter();
+  const API_BASE_URL = Constants.expoConfig?.extra?.API_URL;
   const [activeTab, setActiveTab] = useState("Cartoon");
   const [selectedAvatar, setSelectedAvatar] = useState<
     ImageSourcePropType | string | null
@@ -109,8 +111,11 @@ const AvatarSelection = () => {
       type: mimeType,
     } as any);
 
+
+
+
     const res = await fetch(
-      "http://192.168.43.240:4000/api/auth/update-avatar",
+      `${API_BASE_URL}/api/auth/update-avatar`,
       {
         method: "POST",
         headers: {
@@ -167,7 +172,7 @@ const AvatarSelection = () => {
 
       
       const response = await axios.post(
-        `http://${API_BASE_URL}/api/auth/complete-profile`,
+        `${API_BASE_URL}/api/auth/complete-profile`,
         { avatarUpload: avatarUrl },
         {
           headers: {

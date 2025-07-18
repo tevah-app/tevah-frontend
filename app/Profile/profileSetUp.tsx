@@ -15,10 +15,12 @@ import ProgressBar from "../components/ProgressBar";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ CORRECT
 import { API_BASE_URL } from "../utils/api";
+import Constants from "expo-constants";
 
 export default function ProfileSetUp() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const API_BASE_URL = Constants.expoConfig?.extra?.API_URL;
 
   useFocusEffect(
     useCallback(() => {
@@ -94,7 +96,7 @@ export default function ProfileSetUp() {
       console.log("🚀 Sending interests:", selectedInterests);
 
       const response = await axios.post(
-        `http://${API_BASE_URL}/api/auth/complete-profile`,
+        `${API_BASE_URL}/api/auth/complete-profile`,
         {
           interests: selectedInterests,
         },

@@ -686,6 +686,7 @@ export default function UploadScreen() {
         speaker: `${user.firstName} ${user.lastName}`.trim(),
         speakerAvatar:
           user.avatar || require("../../assets/images/Avatar-1.png"),
+          imageUrl: uploaded.imageUrl || "", 
         favorite: 0,
         saved: 0,
         sheared: 0,
