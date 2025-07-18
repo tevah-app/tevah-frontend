@@ -22,6 +22,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ CORRECT
 
 import { Asset } from "expo-asset";
+import { API_BASE_URL } from "../utils/api";
 
 const avatarTabs = ["Cartoon", "Cute Avatars", "Images"];
 
@@ -109,7 +110,7 @@ const AvatarSelection = () => {
     } as any);
 
     const res = await fetch(
-      "http://192.168.43.62:4000/api/auth/update-avatar",
+      "http://192.168.43.240:4000/api/auth/update-avatar",
       {
         method: "POST",
         headers: {
@@ -163,8 +164,10 @@ const AvatarSelection = () => {
       const avatarUrl = await uploadAvatarToBackend(fileUri, token);
       setConfirmedAvatar(avatarUrl);
 
+
+      
       const response = await axios.post(
-        "http://192.168.43.62:4000/api/auth/complete-profile",
+        `http://${API_BASE_URL}/api/auth/complete-profile`,
         { avatarUpload: avatarUrl },
         {
           headers: {
@@ -304,7 +307,8 @@ const AvatarSelection = () => {
         >
           <Text className="text-white font-semibold">Use Avatar</Text>
         </TouchableOpacity>
-        <TouchableOpacity className="mt-6 items-center">
+        <TouchableOpacity className="mt-6 items-center"
+         onPress={() => router.push("/categories/HomeScreen")}>
           <Text className="text-[#344054] text-[14px] font-rubik-medium">
             Skip this
           </Text>
@@ -321,6 +325,19 @@ const AvatarSelection = () => {
 };
 
 export default AvatarSelection;
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // import {
 //   Image,

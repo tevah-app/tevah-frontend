@@ -24,6 +24,7 @@ import Animated, {
 import Icon from 'react-native-vector-icons/FontAwesome';
 import InfoCard from "../components/successfulCard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_BASE_URL } from "../utils/api";
 
 
 export default function CodeVerification() {
@@ -138,7 +139,7 @@ export default function CodeVerification() {
     }
 
     try {
-      const response = await fetch("http://192.168.43.62:4000/api/auth/verify-email", {
+      const response = await fetch(`http://${API_BASE_URL}/api/auth/verify-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -154,7 +155,7 @@ export default function CodeVerification() {
         console.log("✅ Code verified. Logging in...");
       
         // Log in to get token
-        const loginResponse = await fetch("http://192.168.43.62:4000/api/auth/login", {
+        const loginResponse = await fetch(`http://${API_BASE_URL}/api/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -189,7 +190,7 @@ export default function CodeVerification() {
   const handleResend = async () => {
     setIsResending(true);
     try {
-      const response = await fetch("http://192.168.43.62:4000/api/auth/resend-verification-email", {
+      const response = await fetch(`http://${API_BASE_URL}/api/auth/resend-verification-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: emailAddress }),

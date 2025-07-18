@@ -8,11 +8,16 @@ import Music from "./music";
 import VideoComponent from "./VideoComponent";
 import Header from "../components/Header";
 import EbookComponent from "./EbookComponent";
+import { useLocalSearchParams } from "expo-router";
+import FilteredMediaList from "./FilteredMediaList";
 
 const categories = ["ALL", "LIVE", "SERMON", "MUSIC", "E-BOOKS", "VIDEO"];
 
 export default function HomeTabContent() {
-  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const { defaultCategory } = useLocalSearchParams();
+  const [selectedCategory, setSelectedCategory] = useState(
+    (defaultCategory as string) || "ALL"
+  );
 
   const renderContent = () => {
     switch (selectedCategory) {
@@ -25,15 +30,38 @@ export default function HomeTabContent() {
       case "MUSIC":
         return <Music />;
 
-        // 
-        case "E-BOOKS":
-          return <EbookComponent />;
+      //
+      case "E-BOOKS":
+        return <EbookComponent />;
       case "VIDEO":
         return <VideoComponent />;
       default:
         return null;
     }
+
+    // switch (selectedCategory) {
+    //   case "ALL":
+    //     return <FilteredMediaList tag="All" />;
+    //   case "LIVE":
+    //     return <FilteredMediaList tag="Live" />;
+    //   case "SERMON":
+    //     return <FilteredMediaList tag="Sermons" />;
+    //   case "MUSIC":
+    //     return <FilteredMediaList tag="Music" />;
+    //   case "E-BOOKS":
+    //     return <FilteredMediaList tag="Books" />;
+    //   case "VIDEO":
+    //     return <FilteredMediaList tag="Videos" />;
+    //   default:
+    //     return null;
+    // }
   };
+
+
+  // const renderContent = () => {
+   
+  // };
+
 
   return (
     <View style={{ flex: 1 }}>

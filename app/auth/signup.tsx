@@ -16,6 +16,7 @@ import {
 import AuthHeader from "../components/AuthHeader";
 import VerifyEmail from "./verifyEmail";
 import { AsyncStorage } from "react-native";
+import { API_BASE_URL } from "../utils/api";
 
 export default function SignUpScreen() {
   const { isLoaded, signUp } = useSignUp();
@@ -76,7 +77,7 @@ export default function SignUpScreen() {
   
     if (isValid) {
       try {
-        const response = await fetch("http://192.168.43.62:4000/api/auth/register", {
+        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: emailAddress, password, firstName, lastName }),

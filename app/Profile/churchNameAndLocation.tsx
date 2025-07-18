@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ CORRECT
+import { API_BASE_URL } from "../utils/api";
 
 type Suggestion = {
   id: string;
@@ -43,8 +44,10 @@ function ChurchNameAndLocation() {
         const lat = location.coords.latitude;
         const lng = location.coords.longitude;
 
+       
+
         const res = await fetch(
-          `http://192.168.43.62:4000/api/churches?lat=${lat}&lng=${lng}`
+          `http://${API_BASE_URL}/api/churches?lat=${lat}&lng=${lng}`
         );
         const data = await res.json();
 
@@ -118,9 +121,11 @@ function ChurchNameAndLocation() {
         const geoData = await geoRes.json();
         const loc = geoData.result?.geometry?.location;
 
+
+        
         if (loc) {
           const res = await fetch(
-            `http://192.168.43.62:4000/api/churches?lat=${loc.lat}&lng=${loc.lng}`
+            `http://${API_BASE_URL}/api/churches?lat=${loc.lat}&lng=${loc.lng}`
           );
           const churchData = await res.json();
 
@@ -150,8 +155,10 @@ function ChurchNameAndLocation() {
       const token = await AsyncStorage.getItem("token");
       // Replace with your actual auth token logic
 
+
+      
       const response = await axios.post(
-        "http://192.168.43.62:4000/api/auth/complete-profile",
+        `http://${API_BASE_URL}/api/auth/complete-profile`,
         {
           location: selectedItem.name,
         },

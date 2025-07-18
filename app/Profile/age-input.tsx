@@ -6,6 +6,7 @@ import AuthHeader from "../components/AuthHeader";
 import ProgressBar from "../components/ProgressBar";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ CORRECT
+import { API_BASE_URL } from "../utils/api";
 
 export default function AgeInputScreen() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function AgeInputScreen() {
       // Replace with real token logic
 
       const response = await axios.post(
-        "http://192.168.43.62:4000/api/auth/complete-profile",
+        `http://${API_BASE_URL}/api/auth/complete-profile`,
         { age },
         {
           headers: {

@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import AuthHeader from "../components/AuthHeader";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import { API_BASE_URL } from "../utils/api";
 
 export default function LoginScreen() {
   const [emailAddress, setEmailAddress] = useState("");
@@ -53,8 +54,10 @@ export default function LoginScreen() {
 
     if (!isValid) return;
 
+    // `/auth/login`
+
     try {
-      const response = await fetch("http://192.168.43.62:4000/api/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +85,7 @@ export default function LoginScreen() {
       }
 
       // Navigate to profile setup
-      router.replace("/Profile/profileSetUp");
+      router.replace("/categories/HomeScreen");
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Login Error", "An unexpected error occurred.");

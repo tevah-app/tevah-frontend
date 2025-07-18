@@ -255,7 +255,7 @@
 
 
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import PagerView from "react-native-pager-view";
 
@@ -265,6 +265,7 @@ import LibraryScreen from "../screens/LibraryScreen";
 import HomeTabContent from "./HomeTabContent";
 import CommunityScreen from "../screens/CommunityScreen";
 import AccountScreen from "../screens/AccountScreen";
+import { useLocalSearchParams } from "expo-router";
 
 const tabList = ["Home", "Community", "Library", "Account"];
 
@@ -272,11 +273,12 @@ export default function HomeScreen() {
   const [selectedTab, setSelectedTab] = useState("Home");
   const pagerRef = useRef<PagerView>(null);
 
-  const handleTabChange = (tab: string) => {
-    const index = tabList.indexOf(tab);
-    pagerRef.current?.setPage(index);
-    setSelectedTab(tab);
-  };
+  const { default: defaultTabParam } = useLocalSearchParams();
+useEffect(() => {
+  if (defaultTabParam && tabList.includes(defaultTabParam)) {
+    handleTabChange(defaultTabParam);
+  }
+}, [defaultTabParam]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -315,3 +317,7 @@ export default function HomeScreen() {
     </View>
   );
 }
+function handleTabChange(defaultTabParam: string | string[]) {
+  throw new Error("Function not implemented.");
+}
+
