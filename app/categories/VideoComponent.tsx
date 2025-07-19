@@ -1,4 +1,3 @@
-
 import { useRef, useState } from "react";
 import {
   View,
@@ -17,8 +16,12 @@ import {
 } from "@expo/vector-icons";
 import { Video, AVPlaybackStatus } from "expo-av";
 import { useMediaStore } from "../store/useUploadStore";
-import { PanResponder, GestureResponderEvent, PanResponderGestureState } from "react-native";
-
+import {
+  PanResponder,
+  GestureResponderEvent,
+  PanResponderGestureState,
+} from "react-native";
+import React from "react";
 
 interface VideoCard {
   fileUrl: string;
@@ -53,17 +56,23 @@ export default function VideoComponent() {
     {}
   );
 
-
-
   const [progresses, setProgresses] = useState<Record<string, number>>({});
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
   const [rsModalIndex, setRsModalIndex] = useState<number | null>(null);
 
-  const [miniCardViews, setMiniCardViews] = useState<Record<string, number>>({});
-const [miniCardPlaying, setMiniCardPlaying] = useState<Record<string, boolean>>({});
-const [miniCardHasPlayed, setMiniCardHasPlayed] = useState<Record<string, boolean>>({});
-const [miniCardHasCompleted, setMiniCardHasCompleted] = useState<Record<string, boolean>>({});
+  const [miniCardViews, setMiniCardViews] = useState<Record<string, number>>(
+    {}
+  );
+  const [miniCardPlaying, setMiniCardPlaying] = useState<
+    Record<string, boolean>
+  >({});
+  const [miniCardHasPlayed, setMiniCardHasPlayed] = useState<
+    Record<string, boolean>
+  >({});
+  const [miniCardHasCompleted, setMiniCardHasCompleted] = useState<
+    Record<string, boolean>
+  >({});
   const [videoStats, setVideoStats] = useState<
     Record<string, Partial<VideoCard>>
   >({});
@@ -79,38 +88,36 @@ const [miniCardHasCompleted, setMiniCardHasCompleted] = useState<Record<string, 
   const toggleMute = (key: string) => {
     setMutedVideos((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-  const togglePlay = (key: string) => {
+  const togglePlay = (key: string, video?: VideoCard) => {
     const isCurrentlyPlaying = playingVideos[key];
-
-    // If starting to play...
+  
     if (!isCurrentlyPlaying) {
       const alreadyPlayed = hasPlayed[key];
       const completedBefore = hasCompleted[key];
-
-      // Only increment if first time or replay after completion
-      if (!alreadyPlayed || completedBefore) {
-        incrementView(key);
+  
+      // Only count as a new view if:
+      //  - Not played before, or
+      //  - Was completed and now being played again
+      if ((!alreadyPlayed || completedBefore) && video) {
+        incrementView(key, video); // 👈 pass video
         setHasPlayed((prev) => ({ ...prev, [key]: true }));
         setHasCompleted((prev) => ({ ...prev, [key]: false }));
       }
-
-      // Automatically unmute if it's the first time playing
+  
+      // Auto-unmute if muted
       if (mutedVideos[key]) {
         setMutedVideos((prev) => ({ ...prev, [key]: false }));
       }
     }
-
+  
     setPlayingVideos((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+  
 
   const [hasPlayed, setHasPlayed] = useState<Record<string, boolean>>({});
   const [hasCompleted, setHasCompleted] = useState<Record<string, boolean>>({});
 
-  const incrementView = (key: string) => {
-    const videoIndex = parseInt(key.split("-")[1]);
-    const video = uploadedVideos[videoIndex];
-    if (!video) return;
-
+  const incrementView = (key: string, video: VideoCard) => {
     setVideoStats((prev) => ({
       ...prev,
       [key]: {
@@ -118,27 +125,27 @@ const [miniCardHasCompleted, setMiniCardHasCompleted] = useState<Record<string, 
         views: (prev[key]?.views || 0) + 1,
       },
     }));
-
+  
     const alreadyExists = previouslyViewedState.some(
       (item) => item.title === video.title && item.fileUrl === video.fileUrl
     );
+  
     if (!alreadyExists) {
-      // Generate thumbnail from Cloudinary video
       const fileUrl = video.fileUrl;
-      const thumbnailUrl =
-        fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg";
-
+      const thumbnailUrl = fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg";
+  
       const newItem: RecommendedItem = {
-        fileUrl: video.fileUrl, // video
-        imageUrl: { uri: thumbnailUrl }, // auto-generated thumbnail from Cloudinary
+        fileUrl: video.fileUrl,
+        imageUrl: { uri: thumbnailUrl },
         title: video.title,
         subTitle: video.speaker || "Unknown",
-        views: video.viewCount || 0,
+        views: video.views || 0,
       };
-
+  
       setPreviouslyViewedState((prev) => [newItem, ...prev]);
     }
   };
+  
 
   const handleShare = async (key: string, video: VideoCard) => {
     try {
@@ -163,36 +170,44 @@ const [miniCardHasCompleted, setMiniCardHasCompleted] = useState<Record<string, 
   };
 
   // First 4 for early explore
-const firstExploreVideos = uploadedVideos.slice(1, 5);
+  const firstExploreVideos = uploadedVideos.slice(1, 5);
 
-// Remaining explore videos
-const remainingExploreVideos = uploadedVideos.slice(5);
+  // Remaining explore videos
+  const remainingExploreVideos = uploadedVideos.slice(5);
 
-// Trending videos (excluding early explore to avoid duplication)
-const scoredVideos = uploadedVideos
-  .slice(1) // exclude Recent
-  .filter((v, idx) => idx >= 4) // only consider after first 4 for trending
-  .map((video, i) => ({
-    ...video,
-    score:
-      (video.viewCount || 0) +
-      (video.favorite || 0) +
-      (video.saved || 0) +
-      (video.sheared || 0),
-    index: i,
-  }))
-  .sort((a, b) => b.score - a.score);
+  // Trending videos (excluding early explore to avoid duplication)
+  const scoredVideos = uploadedVideos
+    .slice(1) // exclude Recent
+    .filter((v, idx) => idx >= 4) // only consider after first 4 for trending
+    .map((video, i) => ({
+      ...video,
+      score:
+        (video.viewCount || 0) +
+        (video.favorite || 0) +
+        (video.saved || 0) +
+        (video.sheared || 0),
+      index: i,
+    }))
+    .sort((a, b) => b.score - a.score);
 
-const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) => ({
-  fileUrl: video.fileUrl,
-  imageUrl: {
-    uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
-  },
-  title: video.title,
-  subTitle: video.speaker || "Unknown",
-  views: video.viewCount || 0,
-}));
-
+  const trendingItems: RecommendedItem[] = [...uploadedVideos]
+    .slice(1) // exclude 'Recent'
+    .map((video) => ({
+      fileUrl: video.fileUrl,
+      imageUrl: {
+        uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
+      },
+      title: video.title,
+      subTitle: video.speaker || "Unknown",
+      views: video.viewCount || 0,
+      score:
+        (video.viewCount || 0) +
+        (video.favorite || 0) +
+        (video.saved || 0) +
+        (video.sheared || 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6); // top 6 trending
 
   const handleSave = (key: string) => {
     setVideoStats((prev) => {
@@ -243,16 +258,16 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
     const stats = videoStats[modalKey] || {};
     const videoRef = videoRefs.current[modalKey];
     const progress = progresses[modalKey] ?? 0;
-  
+
     const panResponder = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (evt, gestureState) => {
         const barWidth = 260;
         const x = Math.max(0, Math.min(gestureState.moveX - 50, barWidth));
         const pct = (x / barWidth) * 100;
-  
+
         setProgresses((prev) => ({ ...prev, [modalKey]: pct }));
-  
+
         if (videoRef?.setPositionAsync && videoRef.getStatusAsync) {
           videoRef.getStatusAsync().then((status) => {
             if (status.isLoaded && status.durationMillis) {
@@ -262,7 +277,7 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
         }
       },
     });
-  
+
     return (
       <View key={modalKey} className="flex flex-col mb-10">
         {/* Video Section */}
@@ -290,19 +305,19 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
               }
             }}
           />
-  
+
           {/* Conditional Controls */}
           {playType === "progress" ? (
             // Progress bar and mute toggle (Recent)
             <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
-              <TouchableOpacity onPress={() => togglePlay(modalKey)}>
+            <TouchableOpacity   onPress={() => togglePlay(modalKey, video)}>
                 <Ionicons
                   name={playingVideos[modalKey] ? "pause" : "play"}
                   size={24}
                   color="#FEA74E"
                 />
               </TouchableOpacity>
-  
+
               <View
                 className="flex-1 h-1 bg-white/30 rounded-full relative"
                 {...panResponder.panHandlers}
@@ -326,7 +341,7 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
                   }}
                 />
               </View>
-  
+
               <TouchableOpacity onPress={() => toggleMute(modalKey)}>
                 <Ionicons
                   name={mutedVideos[modalKey] ? "volume-mute" : "volume-high"}
@@ -336,9 +351,11 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
               </TouchableOpacity>
             </View>
           ) : (
+
+            
             // Center play/pause button (Explore More)
             <TouchableOpacity
-              onPress={() => togglePlay(modalKey)}
+            onPress={() => togglePlay(modalKey, video)}
               className="absolute inset-0 justify-center items-center"
               activeOpacity={0.9}
             >
@@ -351,12 +368,14 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
               </View>
             </TouchableOpacity>
           )}
-  
+
           {/* Modal Options (share, save, details) */}
           {modalVisible === modalKey && (
             <View className="absolute top-28 right-4 bg-white shadow-md rounded-lg p-3 z-50 w-44">
               <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-                <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
+                <Text className="text-[#1D2939] font-rubik ml-2">
+                  View Details
+                </Text>
                 <Ionicons name="eye-outline" size={16} color="#3A3E50" />
               </TouchableOpacity>
               <TouchableOpacity
@@ -370,13 +389,15 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
                 onPress={() => handleSave(modalKey)}
                 className="py-2 flex-row items-center justify-between"
               >
-                <Text className="text-[#1D2939] font-rubik ml-2">Save to Library</Text>
+                <Text className="text-[#1D2939] font-rubik ml-2">
+                  Save to Library
+                </Text>
                 <MaterialIcons name="library-add" size={16} color="#3A3E50" />
               </TouchableOpacity>
             </View>
           )}
         </View>
-  
+
         {/* Footer Section: Speaker, Time, Stats */}
         <View className="flex-row items-center justify-between mt-1 px-3">
           <View className="flex flex-row items-center">
@@ -453,7 +474,9 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => setModalVisible(modalVisible === modalKey ? null : modalKey)}
+            onPress={() =>
+              setModalVisible(modalVisible === modalKey ? null : modalKey)
+            }
             className="mr-2"
           >
             <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
@@ -462,9 +485,7 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
       </View>
     );
   };
-  
-  
-  
+
   const renderMiniCards = (
     title: string,
     items: RecommendedItem[],
@@ -480,7 +501,9 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
     setHasCompleted: (val: Record<string, boolean>) => void
   ) => (
     <View className="mt-5">
-      <Text className="text-[16px] font-rubik-semibold text-[#344054] mt-4 mb-2 ml-2">{title}</Text>
+      <Text className="text-[16px] font-rubik-semibold text-[#344054] mt-4 mb-2 ml-2">
+        {title}
+      </Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -490,11 +513,11 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
           const key = `${title}-${index}`;
           const isPlaying = playingState[key] ?? false;
           const views = viewsState[key] ?? item.views;
-  
+
           const togglePlay = () => {
             const alreadyPlayed = hasPlayed[key];
             const completedBefore = hasCompleted[key];
-  
+
             // Only increment if it hasn't been played yet or just finished and is replayed
             if (!alreadyPlayed || completedBefore) {
               setViewsState((prev) => ({
@@ -504,13 +527,13 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
               setHasPlayed((prev) => ({ ...prev, [key]: true }));
               setHasCompleted((prev) => ({ ...prev, [key]: false }));
             }
-  
+
             setPlayingState((prev) => ({
               ...prev,
               [key]: !prev[key],
             }));
           };
-  
+
           const handleShare = async () => {
             try {
               await Share.share({
@@ -522,7 +545,7 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
               console.warn("Share error:", error);
             }
           };
-  
+
           return (
             <View key={key} className="mr-4 w-[154px] flex-col items-center">
               <TouchableOpacity
@@ -532,14 +555,18 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
               >
                 <Video
                   source={{ uri: item.fileUrl }}
-                  style={{ width: "100%", height: "100%", position: "absolute" }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    position: "absolute",
+                  }}
                   resizeMode="cover"
                   isMuted={false}
                   shouldPlay={isPlaying}
                   useNativeControls={false}
                   onPlaybackStatusUpdate={(status) => {
                     if (!status.isLoaded) return;
-  
+
                     if (status.didJustFinish) {
                       setPlayingState((prev) => ({ ...prev, [key]: false }));
                       setHasCompleted((prev) => ({ ...prev, [key]: true }));
@@ -548,7 +575,11 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
                 />
                 <View className="absolute inset-0 justify-center items-center">
                   <View className="bg-white/70 p-2 rounded-full">
-                    <Ionicons name={isPlaying ? "pause" : "play"} size={24} color="#FEA74E" />
+                    <Ionicons
+                      name={isPlaying ? "pause" : "play"}
+                      size={24}
+                      color="#FEA74E"
+                    />
                   </View>
                 </View>
                 <View className="absolute bottom-2 left-2 right-2">
@@ -560,27 +591,37 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
                   </Text>
                 </View>
               </TouchableOpacity>
-  
+
               {modalIndex === index && (
                 <View className="absolute mt-[26px] left-1 bg-white shadow-md rounded-lg p-3 z-50 w-30">
                   <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-                    <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
+                    <Text className="text-[#1D2939] font-rubik ml-2">
+                      View Details
+                    </Text>
                     <Ionicons name="eye-outline" size={16} color="#3A3E50" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     className="py-2 border-b border-gray-200 flex-row items-center justify-between"
                     onPress={handleShare}
                   >
-                    <Text className="text-sm text-[#1D2939] font-rubik ml-2">Share</Text>
+                    <Text className="text-sm text-[#1D2939] font-rubik ml-2">
+                      Share
+                    </Text>
                     <AntDesign name="sharealt" size={16} color="#3A3E50" />
                   </TouchableOpacity>
                   <TouchableOpacity className="py-2 flex-row items-center justify-between">
-                    <Text className="text-[#1D2939] font-rubik mr-2">Save to Library</Text>
-                    <MaterialIcons name="library-add" size={18} color="#3A3E50" />
+                    <Text className="text-[#1D2939] font-rubik mr-2">
+                      Save to Library
+                    </Text>
+                    <MaterialIcons
+                      name="library-add"
+                      size={18}
+                      color="#3A3E50"
+                    />
                   </TouchableOpacity>
                 </View>
               )}
-  
+
               <View className="mt-2 flex flex-col w-full">
                 <View className="flex flex-row justify-between items-center">
                   <Text
@@ -591,10 +632,16 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
                     {item.subTitle?.split(" ").slice(0, 4).join(" ") + " ..."}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => setModalIndex(modalIndex === index ? null : index)}
+                    onPress={() =>
+                      setModalIndex(modalIndex === index ? null : index)
+                    }
                     className="mr-2"
                   >
-                    <Ionicons name="ellipsis-vertical" size={14} color="#9CA3AF" />
+                    <Ionicons
+                      name="ellipsis-vertical"
+                      size={14}
+                      color="#9CA3AF"
+                    />
                   </TouchableOpacity>
                 </View>
                 <View className="flex-row items-center">
@@ -614,7 +661,7 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
       </ScrollView>
     </View>
   );
-  
+
   return (
     <ScrollView className="flex-1 px-3">
       {/* 🎬 Recent */}
@@ -644,7 +691,7 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
           )}
         </>
       )}
-  
+
       {/* 👁 Previously Viewed */}
       {renderMiniCards(
         "Previously Viewed",
@@ -660,7 +707,9 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
         miniCardHasCompleted,
         setMiniCardHasCompleted
       )}
-  
+
+      
+
       {/* 🎥 Explore More - Top 4 */}
       {firstExploreVideos.length > 0 && (
         <>
@@ -692,7 +741,7 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
           </View>
         </>
       )}
-  
+
       {/* 🔥 Trending Section (MiniCards format) */}
       {renderMiniCards(
         "Trending",
@@ -708,7 +757,7 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
         miniCardHasCompleted,
         setMiniCardHasCompleted
       )}
-  
+
       {/* 📽️ Explore More - Remaining */}
       {remainingExploreVideos.length > 0 && (
         <>
@@ -742,9 +791,4 @@ const trendingItems: RecommendedItem[] = scoredVideos.slice(0, 6).map((video) =>
       )}
     </ScrollView>
   );
-  
-  
-  
-
-
 }
