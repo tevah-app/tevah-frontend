@@ -176,39 +176,88 @@ export default function VideoComponent() {
   const remainingExploreVideos = uploadedVideos.slice(5);
 
   // Trending videos (excluding early explore to avoid duplication)
-  const scoredVideos = uploadedVideos
-    .slice(1) // exclude Recent
-    .filter((v, idx) => idx >= 4) // only consider after first 4 for trending
-    .map((video, i) => ({
-      ...video,
-      score:
-        (video.viewCount || 0) +
-        (video.favorite || 0) +
-        (video.saved || 0) +
-        (video.sheared || 0),
-      index: i,
-    }))
-    .sort((a, b) => b.score - a.score);
+  // const scoredVideos = uploadedVideos
+  //   .slice(1) // exclude Recent
+  //   .filter((v, idx) => idx >= 4) // only consider after first 4 for trending
+  //   .map((video, i) => ({
+  //     ...video,
+  //     score:
+  //       (video.viewCount || 0) +
+  //       (video.favorite || 0) +
+  //       (video.saved || 0) +
+  //       (video.sheared || 0),
+  //     index: i,
+  //   }))
+  //   .sort((a, b) => b.score - a.score);
 
-  const trendingItems: RecommendedItem[] = [...uploadedVideos]
-    .slice(1) // exclude 'Recent'
-    .map((video) => ({
-      fileUrl: video.fileUrl,
-      imageUrl: {
-        uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
-      },
-      title: video.title,
-      subTitle: video.speaker || "Unknown",
-      views: video.viewCount || 0,
-      score:
-        (video.viewCount || 0) +
-        (video.favorite || 0) +
-        (video.saved || 0) +
-        (video.sheared || 0),
-    }))
+
+    const scoredVideos = uploadedVideos.map((video) => {
+      const views = video.viewCount || 0;
+      const shares = video.sheared || 0;
+      const favorites = video.favorite || 0;
+      const score = views + shares + favorites;
+    
+      return {
+        fileUrl: video.fileUrl,
+        imageUrl: {
+          uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
+        },
+        title: video.title,
+        subTitle: video.speaker || "Unknown",
+        views,
+        score,
+      };
+    });
+
+    const allIndexedVideos = uploadedVideos.map((video, i) => {
+      // You MUST match the keys used in renderVideoCard!
+      let key = "";
+    
+      if (i === 0) {
+        key = `uploaded-${i}`; // Recent
+      } else if (i > 0 && i <= 4) {
+        key = `explore-early-${i}`; // First 4 Explore
+      } else {
+        key = `explore-remaining-${i + 95}`; // shift index to match your +100 logic
+      }
+    
+      const stats = videoStats[key] || {};
+    
+      const views = Math.max(stats.views ?? 0, video.viewCount ?? 0);
+      const shares = Math.max(stats.sheared ?? 0, video.sheared ?? 0);
+      const favorites = Math.max(stats.favorite ?? 0, video.favorite ?? 0);
+      const score = views + shares + favorites;
+    
+      return {
+        fileUrl: video.fileUrl,
+        title: video.title,
+        subTitle: video.speaker || "Unknown",
+        views,
+        shares,
+        favorites,
+        score,
+        imageUrl: {
+          uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
+        },
+      };
+    });
+    
+    
+    // const highestScore = Math.max(...maxScoredVideos.map((v) => v.score));
+
+
+    const trendingItems: RecommendedItem[] = allIndexedVideos
+    .filter((v) => v.views >= 3 && v.shares >= 3 && v.favorites >= 1)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 6); // top 6 trending
-
+    .map(({ fileUrl, title, subTitle, views, imageUrl }) => ({
+      fileUrl,
+      title,
+      subTitle,
+      views,
+      imageUrl,
+    }));
+  
+  
   const handleSave = (key: string) => {
     setVideoStats((prev) => {
       if (prev[key]?.saved) return prev;
