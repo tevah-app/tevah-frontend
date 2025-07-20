@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -93,93 +93,193 @@ export default function VideoComponent() {
     (item) => item.type?.toLowerCase() === "videos"
   );
 
+
+
+  
   const toggleMute = (key: string) => {
     setMutedVideos((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleMiniCardPlay = (
-    key: string,
-    item: RecommendedItem,
-    setViewsState: (val: Record<string, number>) => void,
-    setPlayingState: (val: Record<string, boolean>) => void,
-    setHasPlayed: (val: Record<string, boolean>) => void,
-    setHasCompleted: (val: Record<string, boolean>) => void
-  ) => {
-    // Pause all other videos and show overlay
-    Object.keys(miniCardPlaying).forEach((k) => {
-      setPlayingVideos((prev) => ({ ...prev, [k]: false }));
-      setShowOverlayMini((prev) => ({ ...prev, [k]: true }));
-    });
+  // const handleMiniCardPlay = (
+  //   key: string,
+  //   item: RecommendedItem,
+  //   setViewsState: (val: Record<string, number>) => void,
+  //   setPlayingState: (val: Record<string, boolean>) => void,
+  //   setHasPlayed: (val: Record<string, boolean>) => void,
+  //   setHasCompleted: (val: Record<string, boolean>) => void
+  // ) => {
+  //   // Pause all other videos and show overlay
+  //   Object.keys(miniCardPlaying).forEach((k) => {
+  //     setPlayingVideos((prev) => ({ ...prev, [k]: false }));
+  //     setShowOverlayMini((prev) => ({ ...prev, [k]: true }));
+  //   });
   
-    const isPlaying = miniCardPlaying[key] ?? false;
-    const wasCompleted = miniCardHasCompleted[key] ?? false;
+  //   const isPlaying = miniCardPlaying[key] ?? false;
+  //   const wasCompleted = miniCardHasCompleted[key] ?? false;
   
-    if (!isPlaying) {
-      if (wasCompleted && miniCardRefs.current[key]) {
-        miniCardRefs.current[key].setPositionAsync(0);
-      }
+  //   if (!isPlaying) {
+  //     if (wasCompleted && miniCardRefs.current[key]) {
+  //       miniCardRefs.current[key].setPositionAsync(0);
+  //     }
   
-      setViewsState((prev) => ({
-        ...prev,
-        [key]: (prev[key] ?? item.views) + 1,
-      }));
+  //     setViewsState((prev) => ({
+  //       ...prev,
+  //       [key]: (prev[key] ?? item.views) + 1,
+  //     }));
   
-      setHasPlayed((prev) => ({ ...prev, [key]: true }));
-      setHasCompleted((prev) => ({ ...prev, [key]: false }));
+  //     setHasPlayed((prev) => ({ ...prev, [key]: true }));
+  //     setHasCompleted((prev) => ({ ...prev, [key]: false }));
   
-      setPlayingState({ [key]: true });
-      setPlayingVideos((prev) => ({ ...prev, [key]: true }));
-      setShowOverlayMini((prev) => ({ ...prev, [key]: false }));
-    } else {
-      // pause and show icon
-      setPlayingState({ [key]: false });
-      setShowOverlayMini((prev) => ({ ...prev, [key]: true }));
-    }
-  };
+  //     setPlayingState({ [key]: true });
+  //     setPlayingVideos((prev) => ({ ...prev, [key]: true }));
+  //     setShowOverlayMini((prev) => ({ ...prev, [key]: false }));
+  //   } else {
+  //     // pause and show icon
+  //     setPlayingState({ [key]: false });
+  //     setShowOverlayMini((prev) => ({ ...prev, [key]: true }));
+  //   }
+  // };
   
 
-  const togglePlay = (key: string, video?: VideoCard) => {
-    const isCurrentlyPlaying = playingVideos[key];
+//   const togglePlay = (key: string, video?: VideoCard) => {
+//     const isCurrentlyPlaying = playingVideos[key];
 
-    const newPlayingState: Record<string, boolean> = {};
+//     const newPlayingState: Record<string, boolean> = {};
    
 
-    Object.keys(playingVideos).forEach((k) => {
-      newPlayingState[k] = false;
-      setShowOverlay((prev) => ({ ...prev, [k]: true })); // 👈 force icon visible
-    });
+//     Object.keys(playingVideos).forEach((k) => {
+//       newPlayingState[k] = false;
+//       setShowOverlay((prev) => ({ ...prev, [k]: true })); // 👈 force icon visible
+//     });
 
-    const shouldStartPlaying = !isCurrentlyPlaying;
+//     const shouldStartPlaying = !isCurrentlyPlaying;
 
-    if (shouldStartPlaying) {
-      const alreadyPlayed = hasPlayed[key];
-      const completedBefore = hasCompleted[key];
+//     if (shouldStartPlaying) {
+//       const alreadyPlayed = hasPlayed[key];
+//       const completedBefore = hasCompleted[key];
 
-      if ((!alreadyPlayed || completedBefore) && video) {
-        incrementView(key, video);
-        setHasPlayed((prev) => ({ ...prev, [key]: true }));
-        setHasCompleted((prev) => ({ ...prev, [key]: false }));
-      }
+//       if ((!alreadyPlayed || completedBefore) && video) {
+//         incrementView(key, video);
+//         setHasPlayed((prev) => ({ ...prev, [key]: true }));
+//         setHasCompleted((prev) => ({ ...prev, [key]: false }));
+//       }
 
-      if (mutedVideos[key]) {
-        setMutedVideos((prev) => ({ ...prev, [key]: false }));
-      }
+//       if (mutedVideos[key]) {
+//         setMutedVideos((prev) => ({ ...prev, [key]: false }));
+//       }
 
-      newPlayingState[key] = true;
+//       newPlayingState[key] = true;
+//     }
+
+//     // ✅ stop mini cards too
+//     setMiniCardPlaying({});
+//     setPlayingVideos(newPlayingState);
+
+//     setPlayingVideos(newPlayingState);
+// setShowOverlay((prev) => ({
+//   ...prev,
+//   [key]: false,
+// }));
+//   };
+
+  
+
+const handleMiniCardPlay = (
+  key: string,
+  item: RecommendedItem,
+  setViewsState: (val: Record<string, number>) => void,
+  setPlayingState: (val: Record<string, boolean>) => void,
+  setHasPlayed: (val: Record<string, boolean>) => void,
+  setHasCompleted: (val: Record<string, boolean>) => void
+) => {
+  // Stop all full video plays
+  Object.keys(playingVideos).forEach((k) => {
+    setPlayingVideos((prev) => ({ ...prev, [k]: false }));
+    setShowOverlay((prev) => ({ ...prev, [k]: true }));
+  });
+
+  // Stop all mini card plays
+  Object.keys(miniCardPlaying).forEach((k) => {
+    setMiniCardPlaying((prev) => ({ ...prev, [k]: false }));
+    setShowOverlayMini((prev) => ({ ...prev, [k]: true }));
+  });
+
+  const isPlaying = miniCardPlaying[key] ?? false;
+  const wasCompleted = miniCardHasCompleted[key] ?? false;
+
+  if (!isPlaying) {
+    if (wasCompleted && miniCardRefs.current[key]) {
+      miniCardRefs.current[key].setPositionAsync(0);
     }
 
-    // ✅ stop mini cards too
-    setMiniCardPlaying({});
-    setPlayingVideos(newPlayingState);
+    setViewsState((prev: { [x: string]: any; }) => ({
+      ...prev,
+      [key]: (prev[key] ?? item.views) + 1,
+    }));
 
-    setPlayingVideos(newPlayingState);
-setShowOverlay((prev) => ({
-  ...prev,
-  [key]: false,
-}));
-  };
+    setHasPlayed((prev: any) => ({ ...prev, [key]: true }));
+    setHasCompleted((prev) => ({ ...prev, [key]: false }));
 
-  const [hasPlayed, setHasPlayed] = useState<Record<string, boolean>>({});
+    setPlayingState({ [key]: true });
+    setMiniCardPlaying({ [key]: true });
+
+    setShowOverlayMini((prev) => ({ ...prev, [key]: false }));
+  } else {
+    setPlayingState({ [key]: false });
+    setMiniCardPlaying({ [key]: false });
+
+    setShowOverlayMini((prev) => ({ ...prev, [key]: true }));
+  }
+};
+
+
+
+const togglePlay = (key: string, video?: VideoCard) => {
+  const isCurrentlyPlaying = playingVideos[key];
+
+  const newPlayingState: Record<string, boolean> = {};
+
+  // Pause all full videos
+  Object.keys(playingVideos).forEach((k) => {
+    newPlayingState[k] = false;
+    setShowOverlay((prev) => ({ ...prev, [k]: true }));
+  });
+
+  // ✅ Pause all mini cards too
+  Object.keys(miniCardPlaying).forEach((k) => {
+    setMiniCardPlaying((prev) => ({ ...prev, [k]: false }));
+    setShowOverlayMini((prev) => ({ ...prev, [k]: true }));
+  });
+
+  const shouldStartPlaying = !isCurrentlyPlaying;
+
+  if (shouldStartPlaying) {
+    const alreadyPlayed = hasPlayed[key];
+    const completedBefore = hasCompleted[key];
+
+    if ((!alreadyPlayed || completedBefore) && video) {
+      incrementView(key, video);
+      setHasPlayed((prev) => ({ ...prev, [key]: true }));
+      setHasCompleted((prev) => ({ ...prev, [key]: false }));
+    }
+
+    if (mutedVideos[key]) {
+      setMutedVideos((prev) => ({ ...prev, [key]: false }));
+    }
+
+    newPlayingState[key] = true;
+  }
+
+  setPlayingVideos(newPlayingState);
+  setShowOverlay((prev) => ({
+    ...prev,
+    [key]: !shouldStartPlaying ? true : false,
+  }));
+};
+
+
+
+const [hasPlayed, setHasPlayed] = useState<Record<string, boolean>>({});
   const [hasCompleted, setHasCompleted] = useState<Record<string, boolean>>({});
 
   const incrementView = (key: string, video: VideoCard) => {
@@ -292,15 +392,15 @@ setShowOverlay((prev) => ({
     } else if (i > 0 && i <= 4) {
       key = `explore-early-${i}`;
     } else {
-      key = `explore-remaining-${i + 95}`; // to match your +100 render keys
+      key = `explore-remaining-${i + 95}`;
     }
-
+  
     const stats = videoStats[key] || {};
     const views = Math.max(stats.views ?? 0, video.viewCount ?? 0);
     const shares = Math.max(stats.sheared ?? 0, video.sheared ?? 0);
     const favorites = Math.max(stats.favorite ?? 0, video.favorite ?? 0);
     const score = views + shares + favorites;
-
+  
     return {
       key,
       fileUrl: video.fileUrl,
@@ -315,6 +415,8 @@ setShowOverlay((prev) => ({
       },
     };
   });
+  
+  
 
   const trendingItems: RecommendedItem[] = allIndexedVideos
     .filter((v) => v.views >= 3 && v.shares >= 3 && v.favorites >= 1)
@@ -326,6 +428,38 @@ setShowOverlay((prev) => ({
       views,
       imageUrl,
     }));
+
+
+    useEffect(() => {
+      // Initialize showOverlay for uploaded videos (Recent, Explore)
+      uploadedVideos.forEach((video, i) => {
+        let key = "";
+        if (i === 0) {
+          key = `uploaded-${i}`;
+        } else if (i > 0 && i <= 4) {
+          key = `explore-early-${i}`;
+        } else {
+          key = `explore-remaining-${i + 95}`;
+        }
+    
+        setShowOverlay((prev) => {
+          if (prev[key]) return prev;
+          return { ...prev, [key]: true };
+        });
+      });
+    
+      // Initialize showOverlayMini for Trending and Previously Viewed
+      const trendingKeys = trendingItems.map((_, i) => `Trending-${i}`);
+      const viewedKeys = previouslyViewedState.map((_, i) => `Previously Viewed-${i}`);
+    
+      [...trendingKeys, ...viewedKeys].forEach((key) => {
+        setShowOverlayMini((prev) => {
+          if (prev[key]) return prev;
+          return { ...prev, [key]: true };
+        });
+      });
+    }, [uploadedVideos, trendingItems, previouslyViewedState]);
+    
 
   const handleSave = (key: string) => {
     setVideoStats((prev) => {
@@ -416,21 +550,18 @@ setShowOverlay((prev) => ({
                   ? (status.positionMillis / status.durationMillis) * 100
                   : 0;
                 setProgresses((prev) => ({ ...prev, [modalKey]: pct }));
-              
+  
                 if (status.didJustFinish) {
                   videoRef?.setPositionAsync(0);
                   setPlayingVideos((prev) => ({ ...prev, [modalKey]: false }));
                   setHasCompleted((prev) => ({ ...prev, [modalKey]: true }));
-              
-                  // 👇 Show overlay icons when video finishes
                   setShowOverlay((prev) => ({ ...prev, [modalKey]: true }));
                 }
               }}
-              
             />
   
             {/* Title Overlay */}
-            {showOverlay[modalKey] && (
+            {!playingVideos[modalKey] && showOverlay[modalKey] && (
               <View className="absolute bottom-9 left-3 right-3 px-4 py-2 rounded-md ">
                 <Text
                   className="text-white font-rubik-semibold text-[14px]"
@@ -442,12 +573,12 @@ setShowOverlay((prev) => ({
             )}
   
             {/* Conditional Controls */}
-            {showOverlay[modalKey] && (
+            {!playingVideos[modalKey] && showOverlay[modalKey] && (
               playType === "progress" ? (
                 <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
                   <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
                     <Ionicons
-                      name={playingVideos[modalKey] ? "pause" : "play"}
+                      name="play"
                       size={24}
                       color="#FEA74E"
                     />
@@ -493,7 +624,7 @@ setShowOverlay((prev) => ({
                 >
                   <View className="bg-white/70 p-2 rounded-full">
                     <Ionicons
-                      name={playingVideos[modalKey] ? "pause" : "play"}
+                      name="play"
                       size={28}
                       color="#FEA74E"
                     />
@@ -616,20 +747,20 @@ setShowOverlay((prev) => ({
     );
   };
   
-
+  
   const renderMiniCards = (
     title: string,
     items: RecommendedItem[],
     modalIndex: number | null,
     setModalIndex: (val: number | null) => void,
     viewsState: Record<string, number>,
-    setViewsState: (val: Record<string, number>) => void,
+    setViewsState: React.Dispatch<React.SetStateAction<Record<string, number>>>,
     playingState: Record<string, boolean>,
-    setPlayingState: (val: Record<string, boolean>) => void,
+    setPlayingState: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
     hasPlayed: Record<string, boolean>,
-    setHasPlayed: (val: Record<string, boolean>) => void,
+    setHasPlayed: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
     hasCompleted: Record<string, boolean>,
-    setHasCompleted: (val: Record<string, boolean>) => void
+    setHasCompleted: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
   ) => (
     <View className="mt-5">
       <Text className="text-[16px] font-rubik-semibold text-[#344054] mt-4 mb-2 ml-2">
@@ -693,23 +824,19 @@ setShowOverlay((prev) => ({
                     if (!status.isLoaded) return;
   
                     if (status.didJustFinish) {
-                      setPlayingState((prev) => ({ ...prev, [key]: false }));
-                      setHasCompleted((prev) => ({ ...prev, [key]: true }));
+                      setPlayingState((prev: any) => ({ ...prev, [key]: false }));
+                      setHasCompleted((prev: any) => ({ ...prev, [key]: true }));
                       setShowOverlayMini((prev) => ({ ...prev, [key]: true }));
                     }
                   }}
                 />
   
-                {/* Show overlay icons only when paused */}
-                {showOverlayMini[key] && (
+                {/* Overlay Play Icon and Title — only when NOT playing */}
+                {!isPlaying && showOverlayMini[key] && (
                   <>
                     <View className="absolute inset-0 justify-center items-center">
                       <View className="bg-white/70 p-2 rounded-full">
-                        <Ionicons
-                          name="play"
-                          size={24}
-                          color="#FEA74E"
-                        />
+                        <Ionicons name="play" size={24} color="#FEA74E" />
                       </View>
                     </View>
                     <View className="absolute bottom-2 left-2 right-2">
@@ -724,36 +851,28 @@ setShowOverlay((prev) => ({
                 )}
               </TouchableOpacity>
   
+              {/* Modal Options */}
               {modalIndex === index && (
                 <View className="absolute mt-[26px] left-1 bg-white shadow-md rounded-lg p-3 z-50 w-30">
                   <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-                    <Text className="text-[#1D2939] font-rubik ml-2">
-                      View Details
-                    </Text>
+                    <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
                     <Ionicons name="eye-outline" size={16} color="#3A3E50" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     className="py-2 border-b border-gray-200 flex-row items-center justify-between"
                     onPress={handleShare}
                   >
-                    <Text className="text-sm text-[#1D2939] font-rubik ml-2">
-                      Share
-                    </Text>
+                    <Text className="text-sm text-[#1D2939] font-rubik ml-2">Share</Text>
                     <AntDesign name="sharealt" size={16} color="#3A3E50" />
                   </TouchableOpacity>
                   <TouchableOpacity className="py-2 flex-row items-center justify-between">
-                    <Text className="text-[#1D2939] font-rubik mr-2">
-                      Save to Library
-                    </Text>
-                    <MaterialIcons
-                      name="library-add"
-                      size={18}
-                      color="#3A3E50"
-                    />
+                    <Text className="text-[#1D2939] font-rubik mr-2">Save to Library</Text>
+                    <MaterialIcons name="library-add" size={18} color="#3A3E50" />
                   </TouchableOpacity>
                 </View>
               )}
   
+              {/* Footer Details */}
               <View className="mt-2 flex flex-col w-full">
                 <View className="flex flex-row justify-between items-center">
                   <Text
@@ -769,11 +888,7 @@ setShowOverlay((prev) => ({
                     }
                     className="mr-2"
                   >
-                    <Ionicons
-                      name="ellipsis-vertical"
-                      size={14}
-                      color="#9CA3AF"
-                    />
+                    <Ionicons name="ellipsis-vertical" size={14} color="#9CA3AF" />
                   </TouchableOpacity>
                 </View>
                 <View className="flex-row items-center">
@@ -793,6 +908,7 @@ setShowOverlay((prev) => ({
       </ScrollView>
     </View>
   );
+  
   
 
   return (
