@@ -140,11 +140,9 @@ export default function VideoComponent() {
 
 
 
-
   const togglePlay = (key: string, video?: VideoCard) => {
     const isCurrentlyPlaying = playingVideos[key];
   
-    // Always stop all videos first
     const newPlayingState: Record<string, boolean> = {};
     Object.keys(playingVideos).forEach((k) => {
       newPlayingState[k] = false;
@@ -152,7 +150,6 @@ export default function VideoComponent() {
   
     const shouldStartPlaying = !isCurrentlyPlaying;
   
-    // Handle view tracking logic only if video will be played
     if (shouldStartPlaying) {
       const alreadyPlayed = hasPlayed[key];
       const completedBefore = hasCompleted[key];
@@ -170,8 +167,11 @@ export default function VideoComponent() {
       newPlayingState[key] = true;
     }
   
+    // ✅ stop mini cards too
+    setMiniCardPlaying({});
     setPlayingVideos(newPlayingState);
   };
+  
   
   
 
