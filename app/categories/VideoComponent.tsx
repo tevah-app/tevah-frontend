@@ -73,6 +73,9 @@ export default function VideoComponent() {
   const [miniCardHasCompleted, setMiniCardHasCompleted] = useState<
     Record<string, boolean>
   >({});
+
+  const miniCardRefs = useRef<Record<string, any>>({});
+
   const [videoStats, setVideoStats] = useState<
     Record<string, Partial<VideoCard>>
   >({});
@@ -88,30 +91,88 @@ export default function VideoComponent() {
   const toggleMute = (key: string) => {
     setMutedVideos((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-  const togglePlay = (key: string, video?: VideoCard) => {
-    const isCurrentlyPlaying = playingVideos[key];
+
+  const handleMiniCardPlay = (
+    key: string,
+    item: RecommendedItem,
+    viewsState: Record<string, number>,
+    setViewsState: (val: Record<string, number>) => void,
+    playingState: Record<string, boolean>,
+    setPlayingState: (val: Record<string, boolean>) => void,
+    hasPlayed: Record<string, boolean>,
+    setHasPlayed: (val: Record<string, boolean>) => void,
+    hasCompleted: Record<string, boolean>,
+    setHasCompleted: (val: Record<string, boolean>) => void
+  ) => {
+    const isPlaying = playingState[key] ?? false;
   
-    if (!isCurrentlyPlaying) {
-      const alreadyPlayed = hasPlayed[key];
-      const completedBefore = hasCompleted[key];
+    // Reset all other videos
+    const newPlaying: Record<string, boolean> = {};
+    Object.keys(playingVideos).forEach((k) => (newPlaying[k] = false));
+    Object.keys(playingState).forEach((k) => (newPlaying[k] = false));
   
-      // Only count as a new view if:
-      //  - Not played before, or
-      //  - Was completed and now being played again
-      if ((!alreadyPlayed || completedBefore) && video) {
-        incrementView(key, video); // 👈 pass video
+    const alreadyPlayed = hasPlayed[key];
+    const completedBefore = hasCompleted[key];
+  
+    if (!isPlaying) {
+      // 👇 Reset to start if finished
+      if (completedBefore && miniCardRefs.current[key]) {
+        miniCardRefs.current[key].setPositionAsync(0);
+      }
+  
+      if (!alreadyPlayed || completedBefore) {
+        setViewsState((prev) => ({
+          ...prev,
+          [key]: (prev[key] ?? item.views) + 1,
+        }));
         setHasPlayed((prev) => ({ ...prev, [key]: true }));
         setHasCompleted((prev) => ({ ...prev, [key]: false }));
       }
   
-      // Auto-unmute if muted
+      newPlaying[key] = true;
+    }
+  
+    // Update global + local state
+    setPlayingVideos(newPlaying);
+    setPlayingState(newPlaying);
+  };
+  
+
+
+
+
+  const togglePlay = (key: string, video?: VideoCard) => {
+    const isCurrentlyPlaying = playingVideos[key];
+  
+    // Always stop all videos first
+    const newPlayingState: Record<string, boolean> = {};
+    Object.keys(playingVideos).forEach((k) => {
+      newPlayingState[k] = false;
+    });
+  
+    const shouldStartPlaying = !isCurrentlyPlaying;
+  
+    // Handle view tracking logic only if video will be played
+    if (shouldStartPlaying) {
+      const alreadyPlayed = hasPlayed[key];
+      const completedBefore = hasCompleted[key];
+  
+      if ((!alreadyPlayed || completedBefore) && video) {
+        incrementView(key, video);
+        setHasPlayed((prev) => ({ ...prev, [key]: true }));
+        setHasCompleted((prev) => ({ ...prev, [key]: false }));
+      }
+  
       if (mutedVideos[key]) {
         setMutedVideos((prev) => ({ ...prev, [key]: false }));
       }
+  
+      newPlayingState[key] = true;
     }
   
-    setPlayingVideos((prev) => ({ ...prev, [key]: !prev[key] }));
+    setPlayingVideos(newPlayingState);
   };
+  
   
 
   const [hasPlayed, setHasPlayed] = useState<Record<string, boolean>>({});
@@ -127,24 +188,24 @@ export default function VideoComponent() {
     }));
   
     const alreadyExists = previouslyViewedState.some(
-      (item) => item.title === video.title && item.fileUrl === video.fileUrl
+      (item) => item.fileUrl === video.fileUrl
     );
   
     if (!alreadyExists) {
-      const fileUrl = video.fileUrl;
-      const thumbnailUrl = fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg";
+      const thumbnailUrl = video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg";
   
       const newItem: RecommendedItem = {
         fileUrl: video.fileUrl,
         imageUrl: { uri: thumbnailUrl },
         title: video.title,
         subTitle: video.speaker || "Unknown",
-        views: video.views || 0,
+        views: (videoStats[key]?.views || video.views || 0),
       };
   
       setPreviouslyViewedState((prev) => [newItem, ...prev]);
     }
   };
+  
   
 
   const handleShare = async (key: string, video: VideoCard) => {
@@ -191,71 +252,82 @@ export default function VideoComponent() {
   //   .sort((a, b) => b.score - a.score);
 
 
-    const scoredVideos = uploadedVideos.map((video) => {
-      const views = video.viewCount || 0;
-      const shares = video.sheared || 0;
-      const favorites = video.favorite || 0;
-      const score = views + shares + favorites;
+    // const scoredVideos = uploadedVideos.map((video) => {
+    //   const views = video.viewCount || 0;
+    //   const shares = video.sheared || 0;
+    //   const favorites = video.favorite || 0;
+    //   const score = views + shares + favorites;
     
-      return {
-        fileUrl: video.fileUrl,
-        imageUrl: {
-          uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
-        },
-        title: video.title,
-        subTitle: video.speaker || "Unknown",
-        views,
-        score,
-      };
-    });
+    //   return {
+    //     fileUrl: video.fileUrl,
+    //     imageUrl: {
+    //       uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
+    //     },
+    //     title: video.title,
+    //     subTitle: video.speaker || "Unknown",
+    //     views,
+    //     score,
+    //   };
+    // });
 
-    const allIndexedVideos = uploadedVideos.map((video, i) => {
-      // You MUST match the keys used in renderVideoCard!
-      let key = "";
-    
-      if (i === 0) {
-        key = `uploaded-${i}`; // Recent
-      } else if (i > 0 && i <= 4) {
-        key = `explore-early-${i}`; // First 4 Explore
-      } else {
-        key = `explore-remaining-${i + 95}`; // shift index to match your +100 logic
-      }
-    
-      const stats = videoStats[key] || {};
-    
-      const views = Math.max(stats.views ?? 0, video.viewCount ?? 0);
-      const shares = Math.max(stats.sheared ?? 0, video.sheared ?? 0);
-      const favorites = Math.max(stats.favorite ?? 0, video.favorite ?? 0);
-      const score = views + shares + favorites;
-    
-      return {
-        fileUrl: video.fileUrl,
-        title: video.title,
-        subTitle: video.speaker || "Unknown",
-        views,
-        shares,
-        favorites,
-        score,
-        imageUrl: {
-          uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
-        },
-      };
-    });
-    
+
+
+const allIndexedVideos = uploadedVideos.map((video, i) => {
+  let key = "";
+  if (i === 0) {
+    key = `uploaded-${i}`;
+  } else if (i > 0 && i <= 4) {
+    key = `explore-early-${i}`;
+  } else {
+    key = `explore-remaining-${i + 95}`; // to match your +100 render keys
+  }
+
+  const stats = videoStats[key] || {};
+  const views = Math.max(stats.views ?? 0, video.viewCount ?? 0);
+  const shares = Math.max(stats.sheared ?? 0, video.sheared ?? 0);
+  const favorites = Math.max(stats.favorite ?? 0, video.favorite ?? 0);
+  const score = views + shares + favorites;
+
+  return {
+    key,
+    fileUrl: video.fileUrl,
+    title: video.title,
+    subTitle: video.speaker || "Unknown",
+    views,
+    shares,
+    favorites,
+    score,
+    imageUrl: {
+      uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
+    },
+  };
+});
+
+const trendingItems: RecommendedItem[] = allIndexedVideos
+  .filter((v) => v.views >= 3 && v.shares >= 3 && v.favorites >= 1)
+  .sort((a, b) => b.score - a.score)
+  .map(({ fileUrl, title, subTitle, views, imageUrl }) => ({
+    fileUrl,
+    title,
+    subTitle,
+    views,
+    imageUrl,
+  }));
+
     
     // const highestScore = Math.max(...maxScoredVideos.map((v) => v.score));
 
 
-    const trendingItems: RecommendedItem[] = allIndexedVideos
-    .filter((v) => v.views >= 3 && v.shares >= 3 && v.favorites >= 1)
-    .sort((a, b) => b.score - a.score)
-    .map(({ fileUrl, title, subTitle, views, imageUrl }) => ({
-      fileUrl,
-      title,
-      subTitle,
-      views,
-      imageUrl,
-    }));
+    // const trendingItems: RecommendedItem[] = allIndexedVideos
+    // .filter((v) => v.views >= 3 && v.shares >= 3 && v.favorites >= 1)
+    // .sort((a, b) => b.score - a.score)
+    // .map(({ fileUrl, title, subTitle, views, imageUrl }) => ({
+    //   fileUrl,
+    //   title,
+    //   subTitle,
+    //   views,
+    //   imageUrl,
+    // }));
   
   
   const handleSave = (key: string) => {
@@ -564,24 +636,20 @@ export default function VideoComponent() {
           const views = viewsState[key] ?? item.views;
 
           const togglePlay = () => {
-            const alreadyPlayed = hasPlayed[key];
-            const completedBefore = hasCompleted[key];
-
-            // Only increment if it hasn't been played yet or just finished and is replayed
-            if (!alreadyPlayed || completedBefore) {
-              setViewsState((prev) => ({
-                ...prev,
-                [key]: (prev[key] ?? item.views) + 1,
-              }));
-              setHasPlayed((prev) => ({ ...prev, [key]: true }));
-              setHasCompleted((prev) => ({ ...prev, [key]: false }));
-            }
-
-            setPlayingState((prev) => ({
-              ...prev,
-              [key]: !prev[key],
-            }));
+            handleMiniCardPlay(
+              key,
+              item,
+              viewsState,
+              setViewsState,
+              playingState,
+              setPlayingState,
+              hasPlayed,
+              setHasPlayed,
+              hasCompleted,
+              setHasCompleted
+            );
           };
+          
 
           const handleShare = async () => {
             try {
@@ -604,6 +672,9 @@ export default function VideoComponent() {
               >
                 <Video
                   source={{ uri: item.fileUrl }}
+                  ref={(ref) => {
+                    if (ref) miniCardRefs.current[key] = ref;
+                  }}
                   style={{
                     width: "100%",
                     height: "100%",
@@ -617,8 +688,8 @@ export default function VideoComponent() {
                     if (!status.isLoaded) return;
 
                     if (status.didJustFinish) {
-                      setPlayingState((prev) => ({ ...prev, [key]: false }));
-                      setHasCompleted((prev) => ({ ...prev, [key]: true }));
+                      setPlayingState((prev: any) => ({ ...prev, [key]: false }));
+                      setHasCompleted((prev: any) => ({ ...prev, [key]: true }));
                     }
                   }}
                 />
