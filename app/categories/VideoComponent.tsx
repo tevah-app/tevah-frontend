@@ -105,21 +105,21 @@ export default function VideoComponent() {
     setHasCompleted: (val: Record<string, boolean>) => void
   ) => {
     const isPlaying = playingState[key] ?? false;
-  
+
     // Reset all other videos
     const newPlaying: Record<string, boolean> = {};
     Object.keys(playingVideos).forEach((k) => (newPlaying[k] = false));
     Object.keys(playingState).forEach((k) => (newPlaying[k] = false));
-  
+
     const alreadyPlayed = hasPlayed[key];
     const completedBefore = hasCompleted[key];
-  
+
     if (!isPlaying) {
       // 👇 Reset to start if finished
       if (completedBefore && miniCardRefs.current[key]) {
         miniCardRefs.current[key].setPositionAsync(0);
       }
-  
+
       if (!alreadyPlayed || completedBefore) {
         setViewsState((prev) => ({
           ...prev,
@@ -128,52 +128,46 @@ export default function VideoComponent() {
         setHasPlayed((prev) => ({ ...prev, [key]: true }));
         setHasCompleted((prev) => ({ ...prev, [key]: false }));
       }
-  
+
       newPlaying[key] = true;
     }
-  
+
     // Update global + local state
     setPlayingVideos(newPlaying);
     setPlayingState(newPlaying);
   };
-  
-
-
 
   const togglePlay = (key: string, video?: VideoCard) => {
     const isCurrentlyPlaying = playingVideos[key];
-  
+
     const newPlayingState: Record<string, boolean> = {};
     Object.keys(playingVideos).forEach((k) => {
       newPlayingState[k] = false;
     });
-  
+
     const shouldStartPlaying = !isCurrentlyPlaying;
-  
+
     if (shouldStartPlaying) {
       const alreadyPlayed = hasPlayed[key];
       const completedBefore = hasCompleted[key];
-  
+
       if ((!alreadyPlayed || completedBefore) && video) {
         incrementView(key, video);
         setHasPlayed((prev) => ({ ...prev, [key]: true }));
         setHasCompleted((prev) => ({ ...prev, [key]: false }));
       }
-  
+
       if (mutedVideos[key]) {
         setMutedVideos((prev) => ({ ...prev, [key]: false }));
       }
-  
+
       newPlayingState[key] = true;
     }
-  
+
     // ✅ stop mini cards too
     setMiniCardPlaying({});
     setPlayingVideos(newPlayingState);
   };
-  
-  
-  
 
   const [hasPlayed, setHasPlayed] = useState<Record<string, boolean>>({});
   const [hasCompleted, setHasCompleted] = useState<Record<string, boolean>>({});
@@ -186,27 +180,26 @@ export default function VideoComponent() {
         views: (prev[key]?.views || 0) + 1,
       },
     }));
-  
+
     const alreadyExists = previouslyViewedState.some(
       (item) => item.fileUrl === video.fileUrl
     );
-  
+
     if (!alreadyExists) {
-      const thumbnailUrl = video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg";
-  
+      const thumbnailUrl =
+        video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg";
+
       const newItem: RecommendedItem = {
         fileUrl: video.fileUrl,
         imageUrl: { uri: thumbnailUrl },
         title: video.title,
         subTitle: video.speaker || "Unknown",
-        views: (videoStats[key]?.views || video.views || 0),
+        views: videoStats[key]?.views || video.views || 0,
       };
-  
+
       setPreviouslyViewedState((prev) => [newItem, ...prev]);
     }
   };
-  
-  
 
   const handleShare = async (key: string, video: VideoCard) => {
     try {
@@ -251,85 +244,66 @@ export default function VideoComponent() {
   //   }))
   //   .sort((a, b) => b.score - a.score);
 
+  // const scoredVideos = uploadedVideos.map((video) => {
+  //   const views = video.viewCount || 0;
+  //   const shares = video.sheared || 0;
+  //   const favorites = video.favorite || 0;
+  //   const score = views + shares + favorites;
 
-    // const scoredVideos = uploadedVideos.map((video) => {
-    //   const views = video.viewCount || 0;
-    //   const shares = video.sheared || 0;
-    //   const favorites = video.favorite || 0;
-    //   const score = views + shares + favorites;
-    
-    //   return {
-    //     fileUrl: video.fileUrl,
-    //     imageUrl: {
-    //       uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
-    //     },
-    //     title: video.title,
-    //     subTitle: video.speaker || "Unknown",
-    //     views,
-    //     score,
-    //   };
-    // });
+  //   return {
+  //     fileUrl: video.fileUrl,
+  //     imageUrl: {
+  //       uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
+  //     },
+  //     title: video.title,
+  //     subTitle: video.speaker || "Unknown",
+  //     views,
+  //     score,
+  //   };
+  // });
 
+  const allIndexedVideos = uploadedVideos.map((video, i) => {
+    let key = "";
+    if (i === 0) {
+      key = `uploaded-${i}`;
+    } else if (i > 0 && i <= 4) {
+      key = `explore-early-${i}`;
+    } else {
+      key = `explore-remaining-${i + 95}`; // to match your +100 render keys
+    }
 
+    const stats = videoStats[key] || {};
+    const views = Math.max(stats.views ?? 0, video.viewCount ?? 0);
+    const shares = Math.max(stats.sheared ?? 0, video.sheared ?? 0);
+    const favorites = Math.max(stats.favorite ?? 0, video.favorite ?? 0);
+    const score = views + shares + favorites;
 
-const allIndexedVideos = uploadedVideos.map((video, i) => {
-  let key = "";
-  if (i === 0) {
-    key = `uploaded-${i}`;
-  } else if (i > 0 && i <= 4) {
-    key = `explore-early-${i}`;
-  } else {
-    key = `explore-remaining-${i + 95}`; // to match your +100 render keys
-  }
+    return {
+      key,
+      fileUrl: video.fileUrl,
+      title: video.title,
+      subTitle: video.speaker || "Unknown",
+      views,
+      shares,
+      favorites,
+      score,
+      imageUrl: {
+        uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
+      },
+    };
+  });
 
-  const stats = videoStats[key] || {};
-  const views = Math.max(stats.views ?? 0, video.viewCount ?? 0);
-  const shares = Math.max(stats.sheared ?? 0, video.sheared ?? 0);
-  const favorites = Math.max(stats.favorite ?? 0, video.favorite ?? 0);
-  const score = views + shares + favorites;
+  const trendingItems: RecommendedItem[] = allIndexedVideos
+    .filter((v) => v.views >= 3 && v.shares >= 3 && v.favorites >= 1)
+    .sort((a, b) => b.score - a.score)
+    .map(({ fileUrl, title, subTitle, views, imageUrl }) => ({
+      fileUrl,
+      title,
+      subTitle,
+      views,
+      imageUrl,
+    }));
 
-  return {
-    key,
-    fileUrl: video.fileUrl,
-    title: video.title,
-    subTitle: video.speaker || "Unknown",
-    views,
-    shares,
-    favorites,
-    score,
-    imageUrl: {
-      uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
-    },
-  };
-});
-
-const trendingItems: RecommendedItem[] = allIndexedVideos
-  .filter((v) => v.views >= 3 && v.shares >= 3 && v.favorites >= 1)
-  .sort((a, b) => b.score - a.score)
-  .map(({ fileUrl, title, subTitle, views, imageUrl }) => ({
-    fileUrl,
-    title,
-    subTitle,
-    views,
-    imageUrl,
-  }));
-
-    
-    // const highestScore = Math.max(...maxScoredVideos.map((v) => v.score));
-
-
-    // const trendingItems: RecommendedItem[] = allIndexedVideos
-    // .filter((v) => v.views >= 3 && v.shares >= 3 && v.favorites >= 1)
-    // .sort((a, b) => b.score - a.score)
-    // .map(({ fileUrl, title, subTitle, views, imageUrl }) => ({
-    //   fileUrl,
-    //   title,
-    //   subTitle,
-    //   views,
-    //   imageUrl,
-    // }));
-  
-  
   const handleSave = (key: string) => {
     setVideoStats((prev) => {
       if (prev[key]?.saved) return prev;
@@ -427,11 +401,20 @@ const trendingItems: RecommendedItem[] = allIndexedVideos
             }}
           />
 
+          <View className="absolute bottom-9 left-3 right-3 bg-black/50 px-4 py-2 rounded-md">
+            <Text
+              className="text-white font-rubik font-medium text-[14px]"
+              numberOfLines={2}
+            >
+              {video.title}
+            </Text>
+          </View>
+
           {/* Conditional Controls */}
           {playType === "progress" ? (
             // Progress bar and mute toggle (Recent)
             <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
-            <TouchableOpacity   onPress={() => togglePlay(modalKey, video)}>
+              <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
                 <Ionicons
                   name={playingVideos[modalKey] ? "pause" : "play"}
                   size={24}
@@ -472,11 +455,9 @@ const trendingItems: RecommendedItem[] = allIndexedVideos
               </TouchableOpacity>
             </View>
           ) : (
-
-            
             // Center play/pause button (Explore More)
             <TouchableOpacity
-            onPress={() => togglePlay(modalKey, video)}
+              onPress={() => togglePlay(modalKey, video)}
               className="absolute inset-0 justify-center items-center"
               activeOpacity={0.9}
             >
@@ -649,7 +630,6 @@ const trendingItems: RecommendedItem[] = allIndexedVideos
               setHasCompleted
             );
           };
-          
 
           const handleShare = async () => {
             try {
@@ -688,8 +668,14 @@ const trendingItems: RecommendedItem[] = allIndexedVideos
                     if (!status.isLoaded) return;
 
                     if (status.didJustFinish) {
-                      setPlayingState((prev: any) => ({ ...prev, [key]: false }));
-                      setHasCompleted((prev: any) => ({ ...prev, [key]: true }));
+                      setPlayingState((prev: any) => ({
+                        ...prev,
+                        [key]: false,
+                      }));
+                      setHasCompleted((prev: any) => ({
+                        ...prev,
+                        [key]: true,
+                      }));
                     }
                   }}
                 />
@@ -827,8 +813,6 @@ const trendingItems: RecommendedItem[] = allIndexedVideos
         miniCardHasCompleted,
         setMiniCardHasCompleted
       )}
-
-      
 
       {/* 🎥 Explore More - Top 4 */}
       {firstExploreVideos.length > 0 && (
