@@ -85,7 +85,7 @@ export default function BottomNav({
                 className="flex-row w-full h-full items-center justify-center gap-4 bg-white/20"
               >
                 <TouchableOpacity
-                  className="bg-[#6663FD] px-4 py-2 rounded-full border-4 border-white"
+                  className="bg-[#FEA74E] px-4 py-2 rounded-full border-4 border-white"
                   onPress={handleUpload}
                 >
                   <Text className="text-white font-medium">Upload</Text>
@@ -101,7 +101,7 @@ export default function BottomNav({
             ) : (
               <View className="flex-row w-full h-full items-center justify-center gap-4 bg-white/70 px-2 rounded-2xl">
                 <TouchableOpacity
-                  className="bg-[#6663FD] px-4 py-2 rounded-full border-4 border-white"
+                  className="bg-[#FEA74E] px-4 py-2 rounded-full border-4 border-white"
                   onPress={handleUpload}
                 >
                   <Text className="text-white font-medium">Upload</Text>
@@ -135,11 +135,11 @@ export default function BottomNav({
                 <IconComponent
                   name={name}
                   size={24}
-                  color={isActive ? "#6663FD" : "#000"}
+                  color={isActive ? "#FEA74E" : "#000"}
                 />
                 <Text
                   className={`text-xs mt-1 ${
-                    isActive ? "text-[#6663FD]" : "text-black"
+                    isActive ? "text-[#FEA74E]" : "text-black"
                   }`}
                 >
                   {label}
@@ -157,7 +157,7 @@ export default function BottomNav({
             <AntDesign
               name={showActions ? "close" : "plus"}
               size={18}
-              color="#6663FD"
+              color="#FEA74E"
             />
           </TouchableOpacity>
         </View>
@@ -176,11 +176,11 @@ export default function BottomNav({
                 <IconComponent
                   name={name}
                   size={24}
-                  color={isActive ? "#6663FD" : "#000"}
+                  color={isActive ? "#FEA74E" : "#000"}
                 />
                 <Text
                   className={`text-xs mt-1 ${
-                    isActive ? "text-[#6663FD]" : "text-black"
+                    isActive ? "text-[#FEA74E]" : "text-black"
                   }`}
                 >
                   {label}
