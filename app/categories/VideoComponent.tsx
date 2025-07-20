@@ -22,6 +22,7 @@ import {
   PanResponderGestureState,
 } from "react-native";
 import React from "react";
+import { TouchableWithoutFeedback } from "react-native";
 
 interface VideoCard {
   fileUrl: string;
@@ -60,6 +61,10 @@ export default function VideoComponent() {
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
   const [rsModalIndex, setRsModalIndex] = useState<number | null>(null);
+  const [showOverlay, setShowOverlay] = useState<Record<string, boolean>>({});
+  const [showOverlayMini, setShowOverlayMini] = useState<Record<string, boolean>>({});
+
+
 
   const [miniCardViews, setMiniCardViews] = useState<Record<string, number>>(
     {}
@@ -95,54 +100,53 @@ export default function VideoComponent() {
   const handleMiniCardPlay = (
     key: string,
     item: RecommendedItem,
-    viewsState: Record<string, number>,
     setViewsState: (val: Record<string, number>) => void,
-    playingState: Record<string, boolean>,
     setPlayingState: (val: Record<string, boolean>) => void,
-    hasPlayed: Record<string, boolean>,
     setHasPlayed: (val: Record<string, boolean>) => void,
-    hasCompleted: Record<string, boolean>,
     setHasCompleted: (val: Record<string, boolean>) => void
   ) => {
-    const isPlaying = playingState[key] ?? false;
-
-    // Reset all other videos
-    const newPlaying: Record<string, boolean> = {};
-    Object.keys(playingVideos).forEach((k) => (newPlaying[k] = false));
-    Object.keys(playingState).forEach((k) => (newPlaying[k] = false));
-
-    const alreadyPlayed = hasPlayed[key];
-    const completedBefore = hasCompleted[key];
-
+    // Pause all other videos and show overlay
+    Object.keys(miniCardPlaying).forEach((k) => {
+      setPlayingVideos((prev) => ({ ...prev, [k]: false }));
+      setShowOverlayMini((prev) => ({ ...prev, [k]: true }));
+    });
+  
+    const isPlaying = miniCardPlaying[key] ?? false;
+    const wasCompleted = miniCardHasCompleted[key] ?? false;
+  
     if (!isPlaying) {
-      // 👇 Reset to start if finished
-      if (completedBefore && miniCardRefs.current[key]) {
+      if (wasCompleted && miniCardRefs.current[key]) {
         miniCardRefs.current[key].setPositionAsync(0);
       }
-
-      if (!alreadyPlayed || completedBefore) {
-        setViewsState((prev) => ({
-          ...prev,
-          [key]: (prev[key] ?? item.views) + 1,
-        }));
-        setHasPlayed((prev) => ({ ...prev, [key]: true }));
-        setHasCompleted((prev) => ({ ...prev, [key]: false }));
-      }
-
-      newPlaying[key] = true;
+  
+      setViewsState((prev) => ({
+        ...prev,
+        [key]: (prev[key] ?? item.views) + 1,
+      }));
+  
+      setHasPlayed((prev) => ({ ...prev, [key]: true }));
+      setHasCompleted((prev) => ({ ...prev, [key]: false }));
+  
+      setPlayingState({ [key]: true });
+      setPlayingVideos((prev) => ({ ...prev, [key]: true }));
+      setShowOverlayMini((prev) => ({ ...prev, [key]: false }));
+    } else {
+      // pause and show icon
+      setPlayingState({ [key]: false });
+      setShowOverlayMini((prev) => ({ ...prev, [key]: true }));
     }
-
-    // Update global + local state
-    setPlayingVideos(newPlaying);
-    setPlayingState(newPlaying);
   };
+  
 
   const togglePlay = (key: string, video?: VideoCard) => {
     const isCurrentlyPlaying = playingVideos[key];
 
     const newPlayingState: Record<string, boolean> = {};
+   
+
     Object.keys(playingVideos).forEach((k) => {
       newPlayingState[k] = false;
+      setShowOverlay((prev) => ({ ...prev, [k]: true })); // 👈 force icon visible
     });
 
     const shouldStartPlaying = !isCurrentlyPlaying;
@@ -167,6 +171,12 @@ export default function VideoComponent() {
     // ✅ stop mini cards too
     setMiniCardPlaying({});
     setPlayingVideos(newPlayingState);
+
+    setPlayingVideos(newPlayingState);
+setShowOverlay((prev) => ({
+  ...prev,
+  [key]: false,
+}));
   };
 
   const [hasPlayed, setHasPlayed] = useState<Record<string, boolean>>({});
@@ -228,6 +238,19 @@ export default function VideoComponent() {
 
   // Remaining explore videos
   const remainingExploreVideos = uploadedVideos.slice(5);
+
+  const handleVideoTap = (key: string) => {
+    // Pause the video and show controls
+    setPlayingVideos((prev) => ({
+      ...prev,
+      [key]: false,
+    }));
+    setShowOverlay((prev) => ({
+      ...prev,
+      [key]: true,
+    }));
+  };
+  
 
   // Trending videos (excluding early explore to avoid duplication)
   // const scoredVideos = uploadedVideos
@@ -353,16 +376,16 @@ export default function VideoComponent() {
     const stats = videoStats[modalKey] || {};
     const videoRef = videoRefs.current[modalKey];
     const progress = progresses[modalKey] ?? 0;
-
+  
     const panResponder = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (evt, gestureState) => {
         const barWidth = 260;
         const x = Math.max(0, Math.min(gestureState.moveX - 50, barWidth));
         const pct = (x / barWidth) * 100;
-
+  
         setProgresses((prev) => ({ ...prev, [modalKey]: pct }));
-
+  
         if (videoRef?.setPositionAsync && videoRef.getStatusAsync) {
           videoRef.getStatusAsync().then((status) => {
             if (status.isLoaded && status.durationMillis) {
@@ -372,135 +395,140 @@ export default function VideoComponent() {
         }
       },
     });
-
+  
     return (
       <View key={modalKey} className="flex flex-col mb-10">
-        {/* Video Section */}
-        <View className="w-full h-[393px] overflow-hidden relative">
-          <Video
-            ref={(ref) => {
-              if (ref) videoRefs.current[modalKey] = ref;
-            }}
-            source={{ uri: video.fileUrl }}
-            style={{ width: "100%", height: "100%", position: "absolute" }}
-            resizeMode="cover"
-            isMuted={mutedVideos[modalKey] ?? false}
-            shouldPlay={playingVideos[modalKey] ?? false}
-            useNativeControls={false}
-            onPlaybackStatusUpdate={(status) => {
-              if (!status.isLoaded) return;
-              const pct = status.durationMillis
-                ? (status.positionMillis / status.durationMillis) * 100
-                : 0;
-              setProgresses((prev) => ({ ...prev, [modalKey]: pct }));
-              if (status.didJustFinish) {
-                videoRef?.setPositionAsync(0);
-                setPlayingVideos((prev) => ({ ...prev, [modalKey]: false }));
-                setHasCompleted((prev) => ({ ...prev, [modalKey]: true }));
-              }
-            }}
-          />
-
-          <View className="absolute bottom-9 left-3 right-3 bg-black/50 px-4 py-2 rounded-md">
-            <Text
-              className="text-white font-rubik font-medium text-[14px]"
-              numberOfLines={2}
-            >
-              {video.title}
-            </Text>
+        <TouchableWithoutFeedback onPress={() => handleVideoTap(modalKey)}>
+          <View className="w-full h-[393px] overflow-hidden relative">
+            <Video
+              ref={(ref) => {
+                if (ref) videoRefs.current[modalKey] = ref;
+              }}
+              source={{ uri: video.fileUrl }}
+              style={{ width: "100%", height: "100%", position: "absolute" }}
+              resizeMode="cover"
+              isMuted={mutedVideos[modalKey] ?? false}
+              shouldPlay={playingVideos[modalKey] ?? false}
+              useNativeControls={false}
+              onPlaybackStatusUpdate={(status) => {
+                if (!status.isLoaded) return;
+                const pct = status.durationMillis
+                  ? (status.positionMillis / status.durationMillis) * 100
+                  : 0;
+                setProgresses((prev) => ({ ...prev, [modalKey]: pct }));
+              
+                if (status.didJustFinish) {
+                  videoRef?.setPositionAsync(0);
+                  setPlayingVideos((prev) => ({ ...prev, [modalKey]: false }));
+                  setHasCompleted((prev) => ({ ...prev, [modalKey]: true }));
+              
+                  // 👇 Show overlay icons when video finishes
+                  setShowOverlay((prev) => ({ ...prev, [modalKey]: true }));
+                }
+              }}
+              
+            />
+  
+            {/* Title Overlay */}
+            {showOverlay[modalKey] && (
+              <View className="absolute bottom-9 left-3 right-3 px-4 py-2 rounded-md ">
+                <Text
+                  className="text-white font-rubik-semibold text-[14px]"
+                  numberOfLines={2}
+                >
+                  {video.title}
+                </Text>
+              </View>
+            )}
+  
+            {/* Conditional Controls */}
+            {showOverlay[modalKey] && (
+              playType === "progress" ? (
+                <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
+                  <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
+                    <Ionicons
+                      name={playingVideos[modalKey] ? "pause" : "play"}
+                      size={24}
+                      color="#FEA74E"
+                    />
+                  </TouchableOpacity>
+  
+                  <View
+                    className="flex-1 h-1 bg-white/30 rounded-full relative"
+                    {...panResponder.panHandlers}
+                  >
+                    <View
+                      className="h-full bg-[#FEA74E] rounded-full"
+                      style={{ width: `${progress}%` }}
+                    />
+                    <View
+                      style={{
+                        position: "absolute",
+                        left: `${progress}%`,
+                        transform: [{ translateX: -6 }],
+                        top: -5,
+                        width: 12,
+                        height: 12,
+                        borderRadius: 6,
+                        backgroundColor: "#FFFFFF",
+                        borderWidth: 1,
+                        borderColor: "#FEA74E",
+                      }}
+                    />
+                  </View>
+  
+                  <TouchableOpacity onPress={() => toggleMute(modalKey)}>
+                    <Ionicons
+                      name={mutedVideos[modalKey] ? "volume-mute" : "volume-high"}
+                      size={20}
+                      color="#FEA74E"
+                    />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => togglePlay(modalKey, video)}
+                  className="absolute inset-0 justify-center items-center"
+                  activeOpacity={0.9}
+                >
+                  <View className="bg-white/70 p-2 rounded-full">
+                    <Ionicons
+                      name={playingVideos[modalKey] ? "pause" : "play"}
+                      size={28}
+                      color="#FEA74E"
+                    />
+                  </View>
+                </TouchableOpacity>
+              )
+            )}
+  
+            {/* Modal Options */}
+            {modalVisible === modalKey && (
+              <View className="absolute top-28 right-4 bg-white shadow-md rounded-lg p-3 z-50 w-44">
+                <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
+                  <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
+                  <Ionicons name="eye-outline" size={16} color="#3A3E50" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleShare(modalKey, video)}
+                  className="py-2 border-b border-gray-200 flex-row items-center justify-between"
+                >
+                  <Text className="text-[#1D2939] font-rubik ml-2">Share</Text>
+                  <AntDesign name="sharealt" size={16} color="#3A3E50" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleSave(modalKey)}
+                  className="py-2 flex-row items-center justify-between"
+                >
+                  <Text className="text-[#1D2939] font-rubik ml-2">Save to Library</Text>
+                  <MaterialIcons name="library-add" size={16} color="#3A3E50" />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-
-          {/* Conditional Controls */}
-          {playType === "progress" ? (
-            // Progress bar and mute toggle (Recent)
-            <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
-              <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
-                <Ionicons
-                  name={playingVideos[modalKey] ? "pause" : "play"}
-                  size={24}
-                  color="#FEA74E"
-                />
-              </TouchableOpacity>
-
-              <View
-                className="flex-1 h-1 bg-white/30 rounded-full relative"
-                {...panResponder.panHandlers}
-              >
-                <View
-                  className="h-full bg-[#FEA74E] rounded-full"
-                  style={{ width: `${progress}%` }}
-                />
-                <View
-                  style={{
-                    position: "absolute",
-                    left: `${progress}%`,
-                    transform: [{ translateX: -6 }],
-                    top: -5,
-                    width: 12,
-                    height: 12,
-                    borderRadius: 6,
-                    backgroundColor: "#FFFFFF",
-                    borderWidth: 1,
-                    borderColor: "#FEA74E",
-                  }}
-                />
-              </View>
-
-              <TouchableOpacity onPress={() => toggleMute(modalKey)}>
-                <Ionicons
-                  name={mutedVideos[modalKey] ? "volume-mute" : "volume-high"}
-                  size={20}
-                  color="#FEA74E"
-                />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            // Center play/pause button (Explore More)
-            <TouchableOpacity
-              onPress={() => togglePlay(modalKey, video)}
-              className="absolute inset-0 justify-center items-center"
-              activeOpacity={0.9}
-            >
-              <View className="bg-white/70 p-2 rounded-full">
-                <Ionicons
-                  name={playingVideos[modalKey] ? "pause" : "play"}
-                  size={28}
-                  color="#FEA74E"
-                />
-              </View>
-            </TouchableOpacity>
-          )}
-
-          {/* Modal Options (share, save, details) */}
-          {modalVisible === modalKey && (
-            <View className="absolute top-28 right-4 bg-white shadow-md rounded-lg p-3 z-50 w-44">
-              <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-                <Text className="text-[#1D2939] font-rubik ml-2">
-                  View Details
-                </Text>
-                <Ionicons name="eye-outline" size={16} color="#3A3E50" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleShare(modalKey, video)}
-                className="py-2 border-b border-gray-200 flex-row items-center justify-between"
-              >
-                <Text className="text-[#1D2939] font-rubik ml-2">Share</Text>
-                <AntDesign name="sharealt" size={16} color="#3A3E50" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleSave(modalKey)}
-                className="py-2 flex-row items-center justify-between"
-              >
-                <Text className="text-[#1D2939] font-rubik ml-2">
-                  Save to Library
-                </Text>
-                <MaterialIcons name="library-add" size={16} color="#3A3E50" />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* Footer Section: Speaker, Time, Stats */}
+        </TouchableWithoutFeedback>
+  
+        {/* Footer Section */}
         <View className="flex-row items-center justify-between mt-1 px-3">
           <View className="flex flex-row items-center">
             <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center relative ml-1 mt-2">
@@ -587,6 +615,7 @@ export default function VideoComponent() {
       </View>
     );
   };
+  
 
   const renderMiniCards = (
     title: string,
@@ -615,22 +644,18 @@ export default function VideoComponent() {
           const key = `${title}-${index}`;
           const isPlaying = playingState[key] ?? false;
           const views = viewsState[key] ?? item.views;
-
+  
           const togglePlay = () => {
             handleMiniCardPlay(
               key,
               item,
-              viewsState,
               setViewsState,
-              playingState,
               setPlayingState,
-              hasPlayed,
               setHasPlayed,
-              hasCompleted,
               setHasCompleted
             );
           };
-
+  
           const handleShare = async () => {
             try {
               await Share.share({
@@ -642,7 +667,7 @@ export default function VideoComponent() {
               console.warn("Share error:", error);
             }
           };
-
+  
           return (
             <View key={key} className="mr-4 w-[154px] flex-col items-center">
               <TouchableOpacity
@@ -651,10 +676,10 @@ export default function VideoComponent() {
                 activeOpacity={0.9}
               >
                 <Video
-                  source={{ uri: item.fileUrl }}
                   ref={(ref) => {
                     if (ref) miniCardRefs.current[key] = ref;
                   }}
+                  source={{ uri: item.fileUrl }}
                   style={{
                     width: "100%",
                     height: "100%",
@@ -666,38 +691,39 @@ export default function VideoComponent() {
                   useNativeControls={false}
                   onPlaybackStatusUpdate={(status) => {
                     if (!status.isLoaded) return;
-
+  
                     if (status.didJustFinish) {
-                      setPlayingState((prev: any) => ({
-                        ...prev,
-                        [key]: false,
-                      }));
-                      setHasCompleted((prev: any) => ({
-                        ...prev,
-                        [key]: true,
-                      }));
+                      setPlayingState((prev) => ({ ...prev, [key]: false }));
+                      setHasCompleted((prev) => ({ ...prev, [key]: true }));
+                      setShowOverlayMini((prev) => ({ ...prev, [key]: true }));
                     }
                   }}
                 />
-                <View className="absolute inset-0 justify-center items-center">
-                  <View className="bg-white/70 p-2 rounded-full">
-                    <Ionicons
-                      name={isPlaying ? "pause" : "play"}
-                      size={24}
-                      color="#FEA74E"
-                    />
-                  </View>
-                </View>
-                <View className="absolute bottom-2 left-2 right-2">
-                  <Text
-                    className="text-white text-start text-[14px] ml-1 mb-6 font-rubik"
-                    numberOfLines={2}
-                  >
-                    {item.title}
-                  </Text>
-                </View>
+  
+                {/* Show overlay icons only when paused */}
+                {showOverlayMini[key] && (
+                  <>
+                    <View className="absolute inset-0 justify-center items-center">
+                      <View className="bg-white/70 p-2 rounded-full">
+                        <Ionicons
+                          name="play"
+                          size={24}
+                          color="#FEA74E"
+                        />
+                      </View>
+                    </View>
+                    <View className="absolute bottom-2 left-2 right-2">
+                      <Text
+                        className="text-white text-start text-[14px] ml-1 mb-6 font-rubik"
+                        numberOfLines={2}
+                      >
+                        {item.title}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </TouchableOpacity>
-
+  
               {modalIndex === index && (
                 <View className="absolute mt-[26px] left-1 bg-white shadow-md rounded-lg p-3 z-50 w-30">
                   <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
@@ -727,7 +753,7 @@ export default function VideoComponent() {
                   </TouchableOpacity>
                 </View>
               )}
-
+  
               <View className="mt-2 flex flex-col w-full">
                 <View className="flex flex-row justify-between items-center">
                   <Text
@@ -767,6 +793,7 @@ export default function VideoComponent() {
       </ScrollView>
     </View>
   );
+  
 
   return (
     <ScrollView className="flex-1 px-3">
