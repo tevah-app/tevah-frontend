@@ -204,7 +204,7 @@ function Welcome() {
           </Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push("/categories/HomeScreen")} className="mt-6">
+        <Pressable onPress={() => router.push("/goLlive/AllowPermissionsScreen")} className="mt-6">
           <Text className="text-sm ">Sign In</Text>
         </Pressable>
       </View>

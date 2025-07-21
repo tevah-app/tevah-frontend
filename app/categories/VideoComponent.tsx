@@ -29,6 +29,7 @@ import {
   getViewed,
   persistViewed,
 } from "../utils/persistentStorage";
+import TemporaryLogoutButton from "../auth/TemporaryLogoutButton";
 
 interface VideoCard {
   fileUrl: string;
@@ -980,6 +981,7 @@ export default function VideoComponent() {
 
   return (
     <ScrollView className="flex-1 px-3">
+      <TemporaryLogoutButton setPreviouslyViewedState={setPreviouslyViewedState} />
       {/* 🎬 Recent */}
       {uploadedVideos.length > 0 && (
         <>
