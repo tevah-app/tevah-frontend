@@ -14,6 +14,7 @@
     "@clerk/clerk-expo": "^2.11.6",
     "@expo-google-fonts/rubik": "^0.3.0",
     "@expo/vector-icons": "^14.1.0",
+    "@hugeicons/react-native": "^1.0.7",
     "@prisma/client": "^6.8.2",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-native-clipboard/clipboard": "^1.16.3",
@@ -47,6 +48,7 @@
     "expo-status-bar": "~2.2.3",
     "expo-symbols": "~0.4.4",
     "expo-system-ui": "~5.0.7",
+    "expo-video": "~2.2.2",
     "expo-web-browser": "~14.1.6",
     "express": "^5.1.0",
     "lottie-react-native": "7.2.2",
@@ -65,13 +67,12 @@
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.10.0",
-    "react-native-svg": "^15.11.2",
+    "react-native-svg": "15.11.2",
     "react-native-vector-icons": "^10.2.0",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
     "tailwindcss": "^3.4.17",
-    "zustand": "^5.0.6",
-    "expo-video": "~2.2.2"
+    "zustand": "^5.0.6"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

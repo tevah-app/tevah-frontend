@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 import { API_BASE_URL } from "../utils/api";
 
-// Local fallback image
 const defaultAvatar = require("../../assets/images/image (5).png");
 
 type User = {
@@ -16,6 +16,7 @@ type User = {
 
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -29,7 +30,7 @@ export default function Header() {
 
         const data = await response.json();
         console.log("👤 User API response:", data);
-        setUser(data.data); // double-check this shape
+        setUser(data.data);
       } catch (error) {
         console.error("❌ Failed to fetch user:", error);
       }
@@ -55,14 +56,23 @@ export default function Header() {
             {user ? `${user.firstName} ${user.lastName}` : "Loading..."}
           </Text>
           <Text className="text-[10px] text-[#090E24] font-rubik font-medium">
-          {user?.section?.toUpperCase()}
+            {user?.section?.toUpperCase()}
           </Text>
         </View>
       </View>
+
       <View className="flex-row gap-4">
-        <Ionicons name="search-outline" size={24} color="#090E24" />
-        <Ionicons name="notifications-outline" size={24} color="#090E24" />
-        <Ionicons name="download-outline" size={24} color="#090E24" />
+        <TouchableOpacity onPress={() => router.push("/ExploreSearch/ExploreSearch")}>
+          <Ionicons name="search-outline" size={24} color="#090E24" />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/")}>
+          <Ionicons name="notifications-outline" size={24} color="#090E24" />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/")}>
+          <Ionicons name="download-outline" size={24} color="#090E24" />
+        </TouchableOpacity>
       </View>
     </View>
   );
