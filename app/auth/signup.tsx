@@ -117,7 +117,11 @@ export default function SignUpScreen() {
 
   return (
     <View className="flex-1 bg-[#FCFCFD]">
-      <AuthHeader title="Sign Up" />
+     
+
+      <View className="px-4 mt-6">
+        <AuthHeader title="Sign Up" />
+      </View>
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}

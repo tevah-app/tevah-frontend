@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AuthHeader from "../components/AuthHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { HugeiconsIcon } from '@hugeicons/react-native';
+import { router } from "expo-router";
 
 
 
@@ -106,9 +107,10 @@ export default function ExploreSearch() {
               onChangeText={setQuery}
             />
           </View>
-          <TouchableOpacity className="ml-3   ">
-          {/* <HugeiconsIcon name="settings-05" size={24} color="#333" /> */}
-          {/* <HugeiconsIcon icon={Settings05Icon} /> */}
+
+ 
+          <TouchableOpacity onPress={() => router.push("/ExploreSearch/FilterScreen")} className="ml-3   ">
+       
 
           <Ionicons name="options" size={36} color="#666" />
           </TouchableOpacity>

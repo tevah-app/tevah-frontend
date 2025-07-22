@@ -203,10 +203,11 @@ function Welcome() {
             Get Started with Email
           </Text>
         </Pressable>
-
-        <Pressable onPress={() => router.push("/auth/login")} className="mt-6">
+        
+         <Pressable onPress={() => router.push("/auth/login")} className="mt-6">
           <Text className="text-sm ">Sign In</Text>
         </Pressable>
+       
       </View>
     </View>
   );

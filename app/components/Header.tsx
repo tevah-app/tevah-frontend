@@ -66,7 +66,7 @@ export default function Header() {
           <Ionicons name="search-outline" size={24} color="#090E24" />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/")}>
+        <TouchableOpacity onPress={() => router.push("/noitfication/NotificationsScreen")}>
           <Ionicons name="notifications-outline" size={24} color="#090E24" />
         </TouchableOpacity>
 
