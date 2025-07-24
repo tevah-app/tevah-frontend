@@ -381,37 +381,7 @@ export default function VideoComponent() {
     }));
   };
 
-  // const allIndexedVideos = uploadedVideos.map((video, i) => {
-  //   let key = "";
-  //   if (i === 0) {
-  //     key = `uploaded-${i}`;
-  //   } else if (i > 0 && i <= 4) {
-  //     key = `explore-early-${i}`;
-  //   } else {
-  //     key = `explore-remaining-${i + 95}`;
-  //   }
-
-  //   const stats = videoStats[key] || {};
-  //   const views = Math.max(stats.views ?? 0, video.viewCount ?? 0);
-  //   const shares = Math.max(stats.sheared ?? 0, video.sheared ?? 0);
-  //   const favorites = Math.max(stats.favorite ?? 0, video.favorite ?? 0);
-  //   const score = views + shares + favorites;
-
-  //   return {
-  //     key,
-  //     fileUrl: video.fileUrl,
-  //     title: video.title,
-  //     subTitle: video.speaker || "Unknown",
-  //     views,
-  //     shares,
-  //     favorites,
-  //     score,
-  //     imageUrl: {
-  //       uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
-  //     },
-  //   };
-  // });
-
+  
   const allIndexedVideos = uploadedVideos.map((video, i) => {
     const key = getVideoKey(video.fileUrl); // ✅ Stable unique key
 
@@ -447,38 +417,7 @@ export default function VideoComponent() {
       imageUrl,
     }));
 
-  // useEffect(() => {
-  //   // Initialize showOverlay for uploaded videos (Recent, Explore)
-  //   uploadedVideos.forEach((video, i) => {
-  //     let key = "";
-  //     if (i === 0) {
-  //       key = `uploaded-${i}`;
-  //     } else if (i > 0 && i <= 4) {
-  //       key = `explore-early-${i}`;
-  //     } else {
-  //       key = `explore-remaining-${i + 95}`;
-  //     }
-
-  //     setShowOverlay((prev) => {
-  //       if (prev[key]) return prev;
-  //       return { ...prev, [key]: true };
-  //     });
-  //   });
-
-  //   // Initialize showOverlayMini for Trending and Previously Viewed
-  //   const trendingKeys = trendingItems.map((_, i) => `Trending-${i}`);
-  //   const viewedKeys = previouslyViewedState.map(
-  //     (_, i) => `Previously Viewed-${i}`
-  //   );
-
-  //   [...trendingKeys, ...viewedKeys].forEach((key) => {
-  //     setShowOverlayMini((prev) => {
-  //       if (prev[key]) return prev;
-  //       return { ...prev, [key]: true };
-  //     });
-  //   });
-  // }, [uploadedVideos, trendingItems, previouslyViewedState]);
-
+ 
   useEffect(() => {
     // Initialize showOverlay for uploaded videos (Recent, Explore, etc.)
     uploadedVideos.forEach((video) => {
@@ -503,40 +442,36 @@ export default function VideoComponent() {
       });
     });
   }, [uploadedVideos, trendingItems, previouslyViewedState]);
-
-  const handleSave = (fileUrl: string) => {
-    const key = getVideoKey(fileUrl);
-
+  const handleSave = (key: string, video: VideoCard) => {
     setVideoStats((prev) => {
-      if (prev[key]?.saved) return prev;
+      const isSaved = prev[key]?.saved === 1;
       const updatedStats = {
         ...prev,
         [key]: {
           ...prev[key],
-          saved: (prev[key]?.saved || 0) + 1,
+          saved: isSaved ? 0 : 1,
         },
       };
       persistStats(updatedStats);
       return updatedStats;
     });
   };
-
-  const handleFavorite = (fileUrl: string) => {
-    const key = getVideoKey(fileUrl);
-
+  
+  const handleFavorite = (key: string, video: VideoCard) => {
     setVideoStats((prev) => {
-      const hasLiked = !!prev[key]?.favorite;
+      const isFavorite = prev[key]?.favorite === 1;
       const updatedStats = {
         ...prev,
         [key]: {
           ...prev[key],
-          favorite: hasLiked ? 0 : 1,
+          favorite: isFavorite ? 0 : 1,
         },
       };
       persistStats(updatedStats);
       return updatedStats;
     });
   };
+  
 
   const getTimeAgo = (createdAt: string): string => {
     const now = new Date();
@@ -557,22 +492,20 @@ export default function VideoComponent() {
     sectionId: string,
     playType: "progress" | "center" = "center"
   ) => {
-    // const modalKey = `${sectionId}-${index}`;
-
     const modalKey = getVideoKey(video.fileUrl);
     const stats = videoStats[modalKey] || {};
     const videoRef = videoRefs.current[modalKey];
     const progress = progresses[modalKey] ?? 0;
-
+  
     const panResponder = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (evt, gestureState) => {
         const barWidth = 260;
         const x = Math.max(0, Math.min(gestureState.moveX - 50, barWidth));
         const pct = (x / barWidth) * 100;
-
+  
         setProgresses((prev) => ({ ...prev, [modalKey]: pct }));
-
+  
         if (videoRef?.setPositionAsync && videoRef.getStatusAsync) {
           videoRef.getStatusAsync().then((status) => {
             if (status.isLoaded && status.durationMillis) {
@@ -582,7 +515,7 @@ export default function VideoComponent() {
         }
       },
     });
-
+  
     return (
       <View key={modalKey} className="flex flex-col mb-10">
         <TouchableWithoutFeedback onPress={() => handleVideoTap(modalKey)}>
@@ -603,7 +536,7 @@ export default function VideoComponent() {
                   ? (status.positionMillis / status.durationMillis) * 100
                   : 0;
                 setProgresses((prev) => ({ ...prev, [modalKey]: pct }));
-
+  
                 if (status.didJustFinish) {
                   videoRef?.setPositionAsync(0);
                   setPlayingVideos((prev) => ({ ...prev, [modalKey]: false }));
@@ -612,10 +545,9 @@ export default function VideoComponent() {
                 }
               }}
             />
-
-            {/* Title Overlay */}
+  
             {!playingVideos[modalKey] && showOverlay[modalKey] && (
-              <View className="absolute bottom-9 left-3 right-3 px-4 py-2 rounded-md ">
+              <View className="absolute bottom-9 left-3 right-3 px-4 py-2 rounded-md">
                 <Text
                   className="text-white font-rubik-semibold text-[14px]"
                   numberOfLines={2}
@@ -624,16 +556,14 @@ export default function VideoComponent() {
                 </Text>
               </View>
             )}
-
-            {/* Conditional Controls */}
-            {!playingVideos[modalKey] &&
-              showOverlay[modalKey] &&
-              (playType === "progress" ? (
+  
+            {!playingVideos[modalKey] && showOverlay[modalKey] && (
+              playType === "progress" ? (
                 <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
                   <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
                     <Ionicons name="play" size={24} color="#FEA74E" />
                   </TouchableOpacity>
-
+  
                   <View
                     className="flex-1 h-1 bg-white/30 rounded-full relative"
                     {...panResponder.panHandlers}
@@ -657,12 +587,10 @@ export default function VideoComponent() {
                       }}
                     />
                   </View>
-
+  
                   <TouchableOpacity onPress={() => toggleMute(modalKey)}>
                     <Ionicons
-                      name={
-                        mutedVideos[modalKey] ? "volume-mute" : "volume-high"
-                      }
+                      name={mutedVideos[modalKey] ? "volume-mute" : "volume-high"}
                       size={20}
                       color="#FEA74E"
                     />
@@ -678,15 +606,13 @@ export default function VideoComponent() {
                     <Ionicons name="play" size={28} color="#FEA74E" />
                   </View>
                 </TouchableOpacity>
-              ))}
-
-            {/* Modal Options */}
+              )
+            )}
+  
             {modalVisible === modalKey && (
               <View className="absolute top-28 right-4 bg-white shadow-md rounded-lg p-3 z-50 w-44">
                 <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-                  <Text className="text-[#1D2939] font-rubik ml-2">
-                    View Details
-                  </Text>
+                  <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
                   <Ionicons name="eye-outline" size={16} color="#3A3E50" />
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -696,18 +622,16 @@ export default function VideoComponent() {
                   <Text className="text-[#1D2939] font-rubik ml-2">Share</Text>
                   <AntDesign name="sharealt" size={16} color="#3A3E50" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleSave(video.fileUrl)}>
-                  <Text className="text-[#1D2939] font-rubik ml-2">
-                    Save to Library
-                  </Text>
+                <TouchableOpacity onPress={() => handleSave(modalKey, video)}>
+                  <Text className="text-[#1D2939] font-rubik ml-2">Save to Library</Text>
                   <MaterialIcons name="library-add" size={16} color="#3A3E50" />
                 </TouchableOpacity>
               </View>
             )}
           </View>
         </TouchableWithoutFeedback>
-
-        {/* Footer Section */}
+  
+        {/* Footer */}
         <View className="flex-row items-center justify-between mt-1 px-3">
           <View className="flex flex-row items-center">
             <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center relative ml-1 mt-2">
@@ -754,27 +678,32 @@ export default function VideoComponent() {
                     {stats.sheared ?? video.sheared}
                   </Text>
                 </TouchableOpacity>
+  
                 <TouchableOpacity
-                  onPress={() => {
-                    if (!stats.saved) handleSave(video.fileUrl);
-                  }}
-                  className="flex-row items-center ml-6"
-                  disabled={!!stats.saved}
+                  onPress={() => handleSave(modalKey, video)}
+                  className="flex-row items-center ml-9"
                 >
-                  <Fontisto name="favorite" size={20} color="#98A2B3" />
-                  <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-                    {stats.saved ?? video.saved}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleFavorite(video.fileUrl)} >
-
                   <MaterialIcons
-                    name={stats.favorite ? "favorite" : "favorite-border"}
+                    name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
                     size={20}
-                    color={stats.favorite ? "#FEA74E" : "#98A2B3"}
+                    color={stats.saved === 1 ? "#FEA74E" : "#98A2B3"}
                   />
                   <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-                    {stats.favorite ?? video.favorite}
+                    {stats.saved === 1 ? (video.saved ?? 0) + 1 : video.saved ?? 0}
+                  </Text>
+                </TouchableOpacity>
+  
+                <TouchableOpacity
+                  onPress={() => handleFavorite(modalKey, video)}
+                  className="ml-9 flex-row"
+                >
+                  <MaterialIcons
+                    name={stats.favorite === 1 ? "favorite" : "favorite-border"}
+                    size={20}
+                    color={stats.favorite === 1 ? "#FEA74E" : "#98A2B3"}
+                  />
+                  <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
+                    {stats.favorite === 1 ? (video.favorite ?? 0) + 1 : video.favorite ?? 0}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -792,7 +721,7 @@ export default function VideoComponent() {
       </View>
     );
   };
-
+  
   const renderMiniCards = (
     title: string,
     items: RecommendedItem[],
@@ -981,7 +910,7 @@ export default function VideoComponent() {
 
   return (
     <ScrollView className="flex-1 px-3">
-      <TemporaryLogoutButton setPreviouslyViewedState={setPreviouslyViewedState} />
+     
       {/* 🎬 Recent */}
       {uploadedVideos.length > 0 && (
         <>

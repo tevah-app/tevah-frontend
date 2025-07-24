@@ -55,10 +55,10 @@ export default function BottomNav({
     }, 300);
   };
 
-  const handleGoLive = () => {
-    setShowActions(false);
-    alert("Go Live clicked!");
-  };
+  // const handleGoLive = () => {
+  //   setShowActions(false);
+  //   alert("/goLlive/AllowPermissionsScreen");
+  // };
 
   return (
     <>
@@ -93,7 +93,7 @@ export default function BottomNav({
 
                 <TouchableOpacity
                   className="bg-black px-4 py-2 rounded-full border-4 border-white"
-                  onPress={handleGoLive}
+                  onPress={() => router.push("/goLlive/AllowPermissionsScreen")}
                 >
                   <Text className="text-white font-medium">Go Live</Text>
                 </TouchableOpacity>
@@ -109,7 +109,7 @@ export default function BottomNav({
 
                 <TouchableOpacity
                   className="bg-black px-4 py-2 rounded-full border-4 border-white"
-                  onPress={handleGoLive}
+                  onPress={() => router.push("/goLlive/AllowPermissionsScreen")}
                 >
                   <Text className="text-white font-medium">Go Live</Text>
                 </TouchableOpacity>

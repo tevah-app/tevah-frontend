@@ -3,11 +3,12 @@
 
 
 
-import { ImageSourcePropType } from "react-native";
+import { GestureResponderEvent } from "react-native";
 import { create } from "zustand";
 
 export interface MediaItem {
-  imageUrl: { uri: string; };
+  onPress: ((event: GestureResponderEvent) => void) | undefined;
+  imageUrl: { uri: string };
   id: string;
   title: string;
   description: string;
@@ -28,8 +29,6 @@ export interface MediaItem {
   updatedAt: string;
   topics: string[];
   thumbnailUrl?: string;
-
-  // ✅ Add these for UI purposes:
   timeAgo?: string;
   speaker?: string;
   speakerAvatar?: string | number;
@@ -38,14 +37,17 @@ export interface MediaItem {
   sheared?: number;
 }
 
-
 interface MediaState {
   mediaList: MediaItem[];
-
   addMedia: (item: MediaItem) => void;
   setMediaList: (items: MediaItem[]) => void;
   removeMedia: (id: string) => void;
   clearMediaList: () => void;
+
+  // 🔊 Add this for global audio control
+  stopAudioFn: (() => Promise<void>) | null;
+  setStopAudioFn: (fn: () => Promise<void>) => void;
+  clearStopAudioFn: () => void;
 }
 
 export const useMediaStore = create<MediaState>((set) => ({
@@ -71,4 +73,10 @@ export const useMediaStore = create<MediaState>((set) => ({
     })),
 
   clearMediaList: () => set({ mediaList: [] }),
+
+  // 🔊 Audio control functions
+  stopAudioFn: null,
+  setStopAudioFn: (fn) => set({ stopAudioFn: fn }),
+  clearStopAudioFn: () => set({ stopAudioFn: null }),
 }));
+
