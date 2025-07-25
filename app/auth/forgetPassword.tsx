@@ -11,7 +11,9 @@ export default function ForgotPassword() {
   return (
 
     <View className="flex flex-col justify-center w-[333px]  mx-auto">
- <AuthHeader title="Forget Password" />
+ <View className="px-4 mt-6">
+        <AuthHeader title="Forgot Password" />
+      </View>
 <View className="flex flex-col w-[333px] h-[176px] mt-6">
 
 
