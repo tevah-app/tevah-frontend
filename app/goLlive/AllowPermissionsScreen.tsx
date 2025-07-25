@@ -67,6 +67,7 @@ const AllowPermissionsScreen = () => {
             </View>
           </View>
         </View>
+        
 
         {/* Allow Button */}
         <Pressable

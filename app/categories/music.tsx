@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -203,6 +203,8 @@ export default function Music() {
   const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
   const [rsModalIndex, setRsModalIndex] = useState<number | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
+
 
   const getAudioKey = (fileUrl: string): string => `Audio-${fileUrl}`;
 
@@ -311,36 +313,36 @@ export default function Music() {
 
  
 
-  const allIndexedAudios = uploadedAudios.map((Audio, i) => {
-    const key = getAudioKey(Audio.fileUrl); // ✅ Stable unique key
+  // const allIndexedAudios = uploadedAudios.map((Audio, i) => {
+  //   const key = getAudioKey(Audio.fileUrl); // ✅ Stable unique key
 
-    const stats = AudioStats[key] || {};
-    const views = Math.max(stats.views ?? 0, Audio.viewCount ?? 0);
-    const shares = Math.max(stats.sheared ?? 0, Audio.sheared ?? 0);
-    const favorites = Math.max(stats.favorite ?? 0, Audio.favorite ?? 0);
-    const score = views + shares + favorites;
+  //   const stats = AudioStats[key] || {};
+  //   const views = Math.max(stats.views ?? 0, Audio.viewCount ?? 0);
+  //   const shares = Math.max(stats.sheared ?? 0, Audio.sheared ?? 0);
+  //   const favorites = Math.max(stats.favorite ?? 0, Audio.favorite ?? 0);
+  //   const score = views + shares + favorites;
 
-    return {
-      key,
-      fileUrl: Audio.fileUrl,
-      title: Audio.title,
-      subTitle: Audio.speaker || "Unknown",
-      views,
-      shares,
-      favorites,
-      score,
-      imageUrl: {
-        uri: Audio.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
-      },
-    };
-  });
+  //   return {
+  //     key,
+  //     fileUrl: Audio.fileUrl,
+  //     title: Audio.title,
+  //     subTitle: Audio.speaker || "Unknown",
+  //     views,
+  //     shares,
+  //     favorites,
+  //     score,
+  //     imageUrl: {
+  //       uri: Audio.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
+  //     },
+  //   };
+  // });
 
   const playAudio = async (uri: string, id: string) => {
     if (isLoadingAudio) return;
     setIsLoadingAudio(true);
   
     try {
-      // Pause currently playing audio if it's not the same
+      // Pause currently playing audio if different
       if (playingId && playingId !== id && soundMap[playingId]) {
         await soundMap[playingId].pauseAsync();
         const status = await soundMap[playingId].getStatusAsync();
@@ -359,19 +361,53 @@ export default function Music() {
   
         if (status.isLoaded) {
           if (status.isPlaying) {
-            // Pause if already playing
-            await existingSound.pauseAsync();
             const pos = status.positionMillis ?? 0;
+            await existingSound.pauseAsync();
             setPausedMap((prev) => ({ ...prev, [id]: pos }));
             setPlayingId(null);
           } else {
-            // Resume if paused
-            await existingSound.playFromPositionAsync(pausedMap[id] ?? 0);
+            const resumePos = pausedMap[id] ?? 0;
+            await existingSound.playFromPositionAsync(resumePos);
             setPlayingId(id);
+  
+            // Ensure duration is set
+            let duration = durationMap[id];
+            if (!duration) {
+              const updatedStatus = await existingSound.getStatusAsync();
+              if (updatedStatus.isLoaded && updatedStatus.durationMillis) {
+                duration = updatedStatus.durationMillis;
+                setDurationMap((prev) => ({
+                  ...prev,
+                  [id]: duration,
+                }));
+              }
+            }
+  
+            setProgressMap((prev) => ({
+              ...prev,
+              [id]: resumePos / Math.max(duration || 1, 1),
+            }));
+  
+            // ✅ View tracking block
+            if (!viewedIds.has(id)) {
+              setAudioStats((prevStats) => {
+                const currentViews = prevStats[id]?.views ?? 0;
+                const updatedStats = {
+                  ...prevStats,
+                  [id]: {
+                    ...prevStats[id],
+                    views: currentViews + 1,
+                  },
+                };
+                persistStats(updatedStats);
+                return updatedStats;
+              });
+              setViewedIds((prev) => new Set(prev).add(id));
+            }
+  
           }
           return;
         } else {
-          // Remove from map if unloaded unexpectedly
           setSoundMap((prev) => {
             const updated = { ...prev };
             delete updated[id];
@@ -380,14 +416,48 @@ export default function Music() {
         }
       }
   
-      // If not loaded, create new sound
+      const resumePos = pausedMap[id] ?? 0;
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri },
-        { shouldPlay: true, isMuted: muteMap[id] ?? false }
+        {
+          shouldPlay: true,
+          isMuted: muteMap[id] ?? false,
+          positionMillis: resumePos,
+        }
       );
   
       setSoundMap((prev) => ({ ...prev, [id]: newSound }));
       setPlayingId(id);
+  
+      // ✅ View tracking block
+      if (!viewedIds.has(id)) {
+        setAudioStats((prevStats) => {
+          const currentViews = prevStats[id]?.views ?? 0;
+          const updatedStats = {
+            ...prevStats,
+            [id]: {
+              ...prevStats[id],
+              views: currentViews + 1,
+            },
+          };
+          persistStats(updatedStats);
+          return updatedStats;
+        });
+        setViewedIds((prev) => new Set(prev).add(id));
+      }
+  
+      const status = await newSound.getStatusAsync();
+      if (status.isLoaded && status.durationMillis) {
+        setDurationMap((prev) => ({
+          ...prev,
+          [id]: status.durationMillis,
+        }));
+  
+        setProgressMap((prev) => ({
+          ...prev,
+          [id]: resumePos / status.durationMillis,
+        }));
+      }
   
       newSound.setOnPlaybackStatusUpdate(async (status) => {
         if (!status.isLoaded || !status.durationMillis) return;
@@ -422,9 +492,11 @@ export default function Music() {
     }
   };
   
+  
+  
 
-// ✅ 1. Define the stopAudio function first
-const stopAudio = async () => {
+
+const stopAudio = useCallback(async () => {
   if (playingId && soundMap[playingId]) {
     await soundMap[playingId].stopAsync();
     await soundMap[playingId].unloadAsync();
@@ -435,8 +507,7 @@ const stopAudio = async () => {
     });
     setPlayingId(null);
   }
-};
-
+}, [playingId, soundMap]);
 // ✅ 2. Then register it inside useEffect (AFTER the function is declared)
 useEffect(() => {
   useMediaStore.getState().setStopAudioFn(stopAudio);
@@ -496,7 +567,10 @@ useEffect(() => {
 
     const handleSeek = async (newProgress: number) => {
       const pos = newProgress * currentDuration;
-      await sound?.setPositionAsync(pos);
+      const currentSound = soundMap[modalKey];
+      if (currentSound) {
+        await currentSound.setPositionAsync(pos);
+      }
       setProgressMap((prev) => ({ ...prev, [modalKey]: newProgress }));
     };
 
@@ -551,11 +625,8 @@ useEffect(() => {
             {playType === "progress" ? (
               <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-2">
                 <TouchableOpacity
-                  onPress={() =>
-                    playingId === modalKey
-                      ? stopAudio()
-                      : playAudio(audioUri, modalKey)
-                  }
+                 onPress={() => playAudio(audioUri, modalKey)}
+
                   className="mr-2"
                 >
                   <Ionicons
@@ -607,11 +678,8 @@ useEffect(() => {
             ) : (
               <View className="absolute inset-0 justify-center items-center">
                 <TouchableOpacity
-                  onPress={() =>
-                    playingId === modalKey
-                      ? stopAudio()
-                      : playAudio(audioUri, modalKey)
-                  }
+                 onPress={() => playAudio(audioUri, modalKey)}
+
                   className="bg-white/70 p-2 rounded-full"
                 >
                   <Ionicons
@@ -623,25 +691,23 @@ useEffect(() => {
               </View>
             )}
 
-            {modalVisible === modalKey && (
-              <View className="absolute mt-[260px] right-4 bg-white shadow-md rounded-lg p-3 z-50 w-44">
+          
+{modalVisible === modalKey && (
+              <View className="absolute top-28 right-4 bg-white shadow-md rounded-lg p-3 z-50 w-44">
                 <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-                  <Text className="text-[#1D2939] font-rubik ml-2">
-                    View Details
-                  </Text>
+                  <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
                   <Ionicons name="eye-outline" size={16} color="#3A3E50" />
                 </TouchableOpacity>
-                <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-                  <Text className="text-sm text-[#1D2939] font-rubik ml-2">
-                    Share
-                  </Text>
+                <TouchableOpacity
+                  onPress={() => handleShare(modalKey, Audio)}
+                  className="py-2 border-b border-gray-200 flex-row items-center justify-between"
+                >
+                  <Text className="text-[#1D2939] font-rubik ml-2">Share</Text>
                   <AntDesign name="sharealt" size={16} color="#3A3E50" />
                 </TouchableOpacity>
-                <TouchableOpacity className="py-2 flex-row items-center justify-between">
-                  <Text className="text-[#1D2939] font-rubik ml-2">
-                    Save to Library
-                  </Text>
-                  <MaterialIcons name="library-add" size={18} color="#3A3E50" />
+                <TouchableOpacity onPress={() => handleSave(modalKey, Audio)}>
+                  <Text className="text-[#1D2939] font-rubik ml-2">Save to Library</Text>
+                  <MaterialIcons name="library-add" size={16} color="#3A3E50" />
                 </TouchableOpacity>
               </View>
             )}

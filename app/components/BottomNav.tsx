@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+} from "react-native";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
 import Upload from "../categories/upload";
@@ -8,6 +14,7 @@ import {
   MaterialCommunityIcons,
   Ionicons,
 } from "@expo/vector-icons";
+import { useMediaStore } from "../store/useUploadStore";
 
 // Bottom tab config
 interface BottomNavProps {
@@ -49,6 +56,7 @@ export default function BottomNav({
   };
 
   const handleUpload = () => {
+    useMediaStore.getState().stopAudioFn?.(); // Stop any active audio
     setShowActions(false);
     setTimeout(() => {
       router.push("/categories/upload");
@@ -93,7 +101,13 @@ export default function BottomNav({
 
                 <TouchableOpacity
                   className="bg-black px-4 py-2 rounded-full border-4 border-white"
-                  onPress={() => router.push("/goLlive/AllowPermissionsScreen")}
+                  onPress={() => {
+                    useMediaStore.getState().stopAudioFn?.();
+                    setShowActions(false);
+                    setTimeout(() => {
+                      router.push("/goLlive/AllowPermissionsScreen");
+                    }, 300);
+                  }}
                 >
                   <Text className="text-white font-medium">Go Live</Text>
                 </TouchableOpacity>
@@ -109,7 +123,13 @@ export default function BottomNav({
 
                 <TouchableOpacity
                   className="bg-black px-4 py-2 rounded-full border-4 border-white"
-                  onPress={() => router.push("/goLlive/AllowPermissionsScreen")}
+                  onPress={() => {
+                    useMediaStore.getState().stopAudioFn?.();
+                    setShowActions(false);
+                    setTimeout(() => {
+                      router.push("/goLlive/AllowPermissionsScreen");
+                    }, 300);
+                  }}
                 >
                   <Text className="text-white font-medium">Go Live</Text>
                 </TouchableOpacity>

@@ -245,6 +245,9 @@ const icons = [
 
 const durations = ["10m", "5m", "2m", "60s", "30s"];
 
+
+
+
 const filters = [
   { id: 1, image: require("../../assets/images/_Avatar Images (2).png") },
   { id: 2, image: require("../../assets/images/_Avatar Images (3).png") },
