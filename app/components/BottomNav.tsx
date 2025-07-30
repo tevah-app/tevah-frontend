@@ -294,8 +294,9 @@ export default function BottomNav({
 
       {/* FAB Action Buttons */}
       {showActions && (
-        <View className="absolute bottom-24 w-[220px] ml-20 flex-row justify-center items-center z-20 mb-12">
-          <View className="rounded-2xl overflow-hidden w-full h-[70px]">
+     <View className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[220px] flex-row justify-center items-center z-20 mb-12">
+
+          <View className="rounded-2xl overflow-hidden w-full h-[70px] mb-7">
             {Platform.OS !== "web" ? (
               <BlurView
                 intensity={80}

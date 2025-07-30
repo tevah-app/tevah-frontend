@@ -96,7 +96,7 @@ export default function SignUpScreen() {
           alert(data.message || "Something went wrong");
         }
       } catch (err) {
-        console.error("Signup error:", err);
+        // console.error("Signup error:", err);
         alert("Signup failed. Try again.");
       }
     }

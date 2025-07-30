@@ -28,7 +28,7 @@ export default function AuthHeader({ title, showCancel = true }: AuthHeaderProps
       <Text className="text-lg font-rubik-semibold text-[#1D2939]">{title}</Text>
 
       {showCancel ? (
-        <TouchableOpacity onPress={() => router.push('/')} className="w-10 h-10 items-center justify-center">
+        <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
           <MaterialIcons name="close" size={24} color="#1D2939" />
         </TouchableOpacity>
       ) : (

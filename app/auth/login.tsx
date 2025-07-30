@@ -87,7 +87,7 @@ export default function LoginScreen() {
       // Navigate to profile setup
       router.replace("/categories/HomeScreen");
     } catch (error) {
-      console.error("Login error:", error);
+      // console.error("Login error:", error);
       Alert.alert("Login Error", "An unexpected error occurred.");
     }
   };

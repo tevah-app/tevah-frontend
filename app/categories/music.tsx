@@ -446,6 +446,7 @@ import {
   AntDesign,
   MaterialIcons,
   Fontisto,
+  Feather,
 } from "@expo/vector-icons";
 import { useMediaStore } from "../store/useUploadStore";
 import { Audio } from "expo-av";
@@ -1175,11 +1176,7 @@ useEffect(() => {
                 </View>
                 <View className="flex flex-row mt-2">
                   <View className="flex-row items-center">
-                    <Image
-                      source={require("../../assets/images/Vector1.png")}
-                      className="h-[20px] w-[20px] ml-1"
-                      resizeMode="contain"
-                    />
+                  <Feather name="eye" size={20} color="#98A2B3" />
                     <Text className="text-[10px] text-gray-500 ml-1 mt-1 font-rubik">
                       {stats.views ?? Audio.views}
                     </Text>
@@ -1334,11 +1331,7 @@ useEffect(() => {
                 </TouchableOpacity>
               </View>
               <View className="flex-row items-center">
-                <Image
-                  source={require("../../assets/images/Vector1.png")}
-                  className="h-[16px] w-[16px] ml-1"
-                  resizeMode="contain"
-                />
+              <Feather name="eye" size={24} color="#98A2B3" />
                 <Text className="text-[10px] text-gray-500 ml-2 mt-1 font-rubik">
                   {item.views}
                 </Text>
@@ -1378,7 +1371,7 @@ useEffect(() => {
               sheared: uploadedAudios[0].sheared ?? 0,
             },
             0,
-            `uploaded-recent-${uploadedAudios[0].id ?? "0"}`,
+            `uploaded-recent-${uploadedAudios[0]._id ?? "0"}`,
             "progress"
           )}
         </View>
@@ -1399,7 +1392,7 @@ useEffect(() => {
             Explore More Music
           </Text>
           {uploadedAudios.slice(1, 5).map((audio, index) => (
-            <View key={`ExploreMoreFirst-${audio.id}-${index}`}>
+            <View key={`ExploreMoreFirst-${audio._id}-${index}`}>
               {renderAudioCard(
                 {
                   fileUrl: { uri: audio.fileUrl },
@@ -1440,7 +1433,7 @@ useEffect(() => {
             Explore More Music
           </Text>
           {uploadedAudios.slice(5).map((audio, index) => (
-            <View key={`ExploreMoreRest-${audio.id}-${index}`}>
+            <View key={`ExploreMoreRest-${audio._id}-${index}`}>
               {renderAudioCard(
                 {
                   fileUrl: { uri: audio.fileUrl },
