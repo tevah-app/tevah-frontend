@@ -1,0 +1,251 @@
+// Example: Updated Video Card component using the new backend interaction system
+import { Ionicons } from '@expo/vector-icons';
+import { ResizeMode, Video } from 'expo-av';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    Image,
+    Text,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
+} from 'react-native';
+import { usePlaybackView } from '../hooks/useContentView';
+import { useGlobalVideoStore } from '../store/useGlobalVideoStore';
+import { useInteractionStore } from '../store/useInteractionStore';
+import CommentsModal from './CommentsModal';
+import InteractionButtons from './InteractionButtons';
+
+interface VideoCardProps {
+  video: {
+    _id?: string;
+    id?: string;
+    fileUrl: string;
+    title: string;
+    speaker: string;
+    uploadedBy?: string;
+    timeAgo: string;
+    speakerAvatar: any;
+    imageUrl?: any;
+    contentType?: string;
+  };
+  index: number;
+  isModalView?: boolean; // Whether this is in modal/fullscreen view
+}
+
+export default function UpdatedVideoCard({ video, index, isModalView = false }: VideoCardProps) {
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const videoRef = useRef<Video>(null);
+  
+  // Generate consistent content ID
+  const contentId = video._id || video.id || `${video.fileUrl}_${index}`;
+  const contentType = video.contentType || 'video';
+  
+  // ✅ Use global video store for cross-component video management
+  const globalVideoStore = useGlobalVideoStore();
+  const videoKey = `updated-video-${contentId}`;
+  
+  // ✅ Get video state from global store
+  const isPlaying = globalVideoStore.playingVideos[videoKey] ?? false;
+  const showOverlay = globalVideoStore.showOverlay[videoKey] ?? true;
+
+  // Use the playback view hook to track when user watches the video
+  const { viewDuration, hasTrackedView } = usePlaybackView({
+    contentId,
+    contentType: contentType as any,
+    isPlaying,
+    threshold: 5, // Track view after 5 seconds of playback
+  });
+
+  // Load initial stats when component mounts
+  const { loadContentStats } = useInteractionStore();
+  
+  useEffect(() => {
+    loadContentStats(contentId);
+  }, [contentId, loadContentStats]);
+
+  const togglePlay = async () => {
+    try {
+      // ✅ Use global video management - this will pause all other videos across all components
+      globalVideoStore.playVideoGlobally(videoKey);
+    } catch (error) {
+      console.error('Error toggling video playback:', error);
+    }
+  };
+
+  const handlePlaybackStatusUpdate = (status: any) => {
+    if (!status.isLoaded) return;
+
+    // Handle video completion
+    if (status.didJustFinish) {
+      globalVideoStore.pauseVideo(videoKey);
+      globalVideoStore.setVideoCompleted(videoKey, true);
+    }
+  };
+
+  return (
+    <View className="mb-6 bg-white rounded-lg overflow-hidden">
+      {/* Video Player Section */}
+      <View className="relative">
+        <TouchableOpacity
+          onPress={togglePlay}
+          className="w-full h-[250px] bg-black"
+          activeOpacity={0.9}
+        >
+          <Video
+            ref={videoRef}
+            source={{ uri: video.fileUrl }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode={ResizeMode.COVER}
+            isMuted={false}
+            shouldPlay={isPlaying}
+            useNativeControls={false}
+            onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+          />
+          
+          {/* Play Button Overlay */}
+          {!isPlaying && showOverlay && (
+            <View className="absolute inset-0 justify-center items-center">
+              <View className="bg-white/70 p-4 rounded-full">
+                <Ionicons name="play" size={32} color="#FEA74E" />
+              </View>
+            </View>
+          )}
+
+          {/* Interaction Buttons (only in modal view) */}
+          {isModalView && (
+            <View className="absolute right-4 bottom-16">
+              <InteractionButtons
+                contentId={contentId}
+                contentType={contentType as any}
+                contentTitle={video.title}
+                contentUrl={video.fileUrl}
+                layout="vertical"
+                iconSize={30}
+                onCommentPress={() => setShowCommentsModal(true)}
+              />
+            </View>
+          )}
+
+          {/* Video Title Overlay */}
+          {!isPlaying && showOverlay && (
+            <View className="absolute bottom-4 left-4 right-4">
+              <Text className="text-white font-rubik-semibold text-sm" numberOfLines={2}>
+                {video.title}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Video Info Section (for feed view) */}
+      {!isModalView && (
+        <View className="p-4">
+          <View className="flex-row items-start justify-between">
+            <View className="flex-1 mr-3">
+              <Text className="text-gray-900 font-rubik-semibold text-base mb-1">
+                {video.title}
+              </Text>
+              
+              <View className="flex-row items-center mb-2">
+                <Image
+                  source={
+                    typeof video.speakerAvatar === 'string'
+                      ? { uri: video.speakerAvatar }
+                      : video.speakerAvatar
+                  }
+                  className="w-6 h-6 rounded-full mr-2"
+                  resizeMode="cover"
+                />
+                <Text className="text-gray-600 font-rubik text-sm">
+                  {video.speaker}
+                </Text>
+                <Text className="text-gray-400 font-rubik text-sm ml-2">
+                  • {video.timeAgo}
+                </Text>
+              </View>
+
+              {/* Horizontal Interaction Stats */}
+              <InteractionButtons
+                contentId={contentId}
+                contentType={contentType as any}
+                contentTitle={video.title}
+                contentUrl={video.fileUrl}
+                layout="horizontal"
+                iconSize={20}
+                onCommentPress={() => setShowCommentsModal(true)}
+              />
+            </View>
+
+            {/* Menu Button */}
+            <TouchableOpacity
+              onPress={() => setModalVisible(!modalVisible)}
+              className="p-2"
+            >
+              <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Action Menu */}
+          {modalVisible && (
+            <>
+              <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+                <View className="absolute inset-0 z-10" />
+              </TouchableWithoutFeedback>
+              
+              <View className="absolute top-12 right-4 bg-white shadow-lg rounded-lg p-3 z-20 w-40">
+                <TouchableOpacity className="py-2 flex-row items-center">
+                  <Ionicons name="eye-outline" size={20} color="#374151" />
+                  <Text className="text-gray-700 font-rubik ml-3">View Details</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity className="py-2 flex-row items-center">
+                  <Ionicons name="download-outline" size={20} color="#374151" />
+                  <Text className="text-gray-700 font-rubik ml-3">Download</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity className="py-2 flex-row items-center">
+                  <Ionicons name="flag-outline" size={20} color="#374151" />
+                  <Text className="text-gray-700 font-rubik ml-3">Report</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* View tracking indicator (for development/debugging) */}
+          {__DEV__ && (
+            <View className="mt-2 p-2 bg-gray-100 rounded">
+              <Text className="text-xs text-gray-600 font-mono">
+                View Duration: {viewDuration}s | Tracked: {hasTrackedView ? 'Yes' : 'No'}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Comments Modal */}
+      <CommentsModal
+        isVisible={showCommentsModal}
+        onClose={() => setShowCommentsModal(false)}
+        contentId={contentId}
+        contentTitle={video.title}
+      />
+    </View>
+  );
+}
+
+// Usage example in your VideoComponent:
+/*
+import UpdatedVideoCard from '../components/UpdatedVideoCard';
+
+// In your render method:
+{videos.map((video, index) => (
+  <UpdatedVideoCard
+    key={video._id || index}
+    video={video}
+    index={index}
+    isModalView={false} // Set to true for full-screen modal view
+  />
+))}
+*/

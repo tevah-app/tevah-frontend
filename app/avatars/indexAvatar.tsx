@@ -230,7 +230,11 @@ const AvatarSelection = () => {
 
   return (
     <View className="flex-1 items-center bg-[#FCFCFD] w-full relative">
-      <AuthHeader title="Profile Setup" />
+      
+
+      <View className="px-4 mt-6">
+        <AuthHeader title="Profile Setup" />
+      </View>
 
       {/* Success / Failure Card */}
       <RNAnimated.View

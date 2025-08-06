@@ -1,11 +1,13 @@
-import React, { useState } from "react";
-import { View, Text, Image, TouchableOpacity, ScrollView } from "react-native";
 import {
-  Ionicons,
-  AntDesign,
-  MaterialIcons,
-  Fontisto,
+    AntDesign,
+    Fontisto,
+    Ionicons,
+    MaterialIcons,
 } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useMediaStore } from "../store/useUploadStore";
 
 interface VideoCard {
   imageUrl: any;
@@ -186,7 +188,27 @@ const recommendedItems: RecommendedItem[] = [
   },
 ];
 
+function getTimeAgo(createdAt: string): string {
+  const now = new Date();
+  const posted = new Date(createdAt);
+  const diff = now.getTime() - posted.getTime();
+  const minutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (minutes < 1) return "NOW";
+  if (minutes < 60) return `${minutes}MIN AGO`;
+  if (hours < 24) return `${hours}HRS AGO`;
+  return `${days}DAYS AGO`;
+}
+
 export default function SermonComponent() {
+  const mediaStore = useMediaStore();
+  useFocusEffect(
+    useCallback(() => {
+      mediaStore.refreshUserDataForExistingMedia();
+    }, [])
+  );
+  const sermonVideos = mediaStore.mediaList.filter(item => item.contentType === "sermon");
   const [isMuted, setIsMuted] = useState(true);
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
@@ -463,11 +485,17 @@ export default function SermonComponent() {
         <Text className="text-[#344054] text-[16px] font-rubik-semibold mb-4">
           Listening
         </Text>
-        {Videos.map((video, index) => (
-          <View key={`Videos-${video.title}-${index}`}>
-            {renderVideoCard(video, index, "main", "progress")}
-          </View>
-        ))}
+        {sermonVideos.map((item, index) => renderVideoCard({
+          ...item,
+          views: (item as any).views ?? 0,
+          favorite: (item as any).favorite ?? 0,
+          saved: (item as any).saved ?? 0,
+          sheared: (item as any).sheared ?? 0,
+          speaker: item.speaker ?? '',
+          speakerAvatar: item.speakerAvatar ?? require("../../assets/images/Avatar-1.png"),
+          timeAgo: getTimeAgo(item.createdAt),
+          onPress: item.onPress,
+        }, index, "main", "progress"))}
       </View>
 
       {renderMiniCards(

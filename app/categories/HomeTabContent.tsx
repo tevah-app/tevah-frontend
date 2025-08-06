@@ -1,15 +1,14 @@
 import React, { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
-import AllContent from "./Allcontent";
-import LiveComponent from "./LiveComponent";
-import SermonComponent from "./SermonComponent";
-import Music from "./music";
-import VideoComponent from "./VideoComponent";
-import Header from "../components/Header";
-import EbookComponent from "./EbookComponent";
 import { useLocalSearchParams } from "expo-router";
-import FilteredMediaList from "./FilteredMediaList";
+import Header from "../components/Header";
+import AllContent from "./Allcontent";
+import EbookComponent from "./EbookComponent";
+import LiveComponent from "./LiveComponent";
+import Music from "./music";
+import SermonComponent from "./SermonComponent";
+import VideoComponent from "./VideoComponent";
 
 const categories = ["ALL", "LIVE", "SERMON", "MUSIC", "E-BOOKS", "VIDEO"];
 
@@ -64,19 +63,18 @@ export default function HomeTabContent() {
 
 
   return (
-    <View style={{ flex: 1 }}>
-      <Header />
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 100,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
+    <View style={{ flex: 1 }} className="w-full">
+    <Header />
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      className="bg-[#98a2b318]"
+    >
+      {/* Category Buttons with Padding */}
+      <View className="px-4">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="px-2 py-3 mt-6"
+          className="py-3 mt-6 "
         >
           {categories.map((category) => (
             <TouchableOpacity
@@ -98,13 +96,12 @@ export default function HomeTabContent() {
                 >
                   {category}
                 </Text>
-
                 {category === "LIVE" && (
                   <View
                     style={{
                       position: "absolute",
                       top: -2,
-                      right: 2, // Adjust to position over the "E"
+                      right: 2,
                       width: 5,
                       height: 5,
                       borderRadius: 4,
@@ -116,8 +113,12 @@ export default function HomeTabContent() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        <View className="flex-1">{renderContent()}</View>
-      </ScrollView>
-    </View>
+      </View>
+      {/* Content without Padding */}
+      <View className="flex-1 w-full" style={{ paddingBottom: 100 }}>
+        {renderContent()}
+      </View>
+    </ScrollView>
+  </View>
   );
 }

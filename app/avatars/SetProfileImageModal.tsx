@@ -1,5 +1,3 @@
-
-
 import React, { useEffect } from "react";
 import { Text, View, TouchableOpacity, Dimensions } from "react-native";
 import Animated, {
@@ -16,6 +14,7 @@ import {
 } from "react-native-gesture-handler";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 type Props = {
   isVisible: boolean;
@@ -65,8 +64,8 @@ export default function SlideUpSetProfileImageModal({
   if (!isVisible) return null;
 
   return (
-    <GestureHandlerRootView className="absolute inset-0 z-50 mx-auto">
-      {/* Optional background overlay */}
+    <GestureHandlerRootView className="absolute inset-0 z-50 items-center justify-end">
+      {/* Background overlay */}
       <View className="absolute inset-0 bg-black/30" />
 
       <PanGestureHandler
@@ -78,11 +77,8 @@ export default function SlideUpSetProfileImageModal({
             animatedStyle,
             {
               position: "absolute",
-              marginLeft: -180,
               bottom: 0,
-              left: 0,
-              right: 0,
-              width: "100%", // Ensure modal spans full screen width
+              width: SCREEN_WIDTH, // ✅ full screen width
             },
           ]}
           className="bg-white rounded-t-3xl p-6 h-[301px]"

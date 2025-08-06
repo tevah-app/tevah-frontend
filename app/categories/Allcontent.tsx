@@ -1,752 +1,132 @@
-// import React, { useState,  useCallback  } from "react";
-// import {
-//   View,
-//   Image,
-//   Text,
-//   ScrollView,
-//   TouchableOpacity,
-//   ImageSourcePropType,
-// } from "react-native";
-// import {
-//   Ionicons,
-//   AntDesign,
-//   MaterialIcons,
-//   Fontisto,
-// } from "@expo/vector-icons";
-// import { useLocalSearchParams, useRouter } from "expo-router";
-// import { BackHandler } from "react-native";
-// import { useFocusEffect } from "@react-navigation/native";
-
-
-
-// interface RecommendedItem {
-//   title: string;
-//   fileUrl: any;
-//   subTitle: string;
-//   views: number;
-//   onPress?: () => void;
-// }
-
-// interface ExploreItem {
-//   title: string;
-//   fileUrl: string;
-//   subTitle: string;
-//   views: number;
-//   timeAgo: string;
-//   onPress?: () => void;
-// }
-
-// // interface VideoCard {
-// //   fileUrl: string;
-// //   title: string;
-// //   speaker: string;
-// //   timeAgo: string;
-// //   speakerAvatar: any;
-// //   favorite: number;
-// //   views: number;
-// //   saved: number;
-// //   sheared: number;
-
-// //   onPress?: () => void;
-// // }
-
-// interface VideoCard {
-//   fileUrl: ImageSourcePropType | string;
-//   title: string;
-//   speaker: string;
-//   timeAgo: string;
-//   speakerAvatar: ImageSourcePropType | string;
-//   favorite: number;
-//   views: number;
-//   saved: number;
-//   sheared: number;
-// }
-
-// const videos: VideoCard[] = [
-//   {
-//     fileUrl: require("../../assets/images/bg (1).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-// ];
-
-// const videosA: VideoCard[] = [
-//   {
-//     fileUrl: require("../../assets/images/image (8).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-//   {
-//     fileUrl: require("../../assets/images/image (9).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-//   {
-//     fileUrl: require("../../assets/images/image (10).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-//   {
-//     fileUrl: require("../../assets/images/image (10).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-//   {
-//     fileUrl: require("../../assets/images/image (10).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-// ];
-
-// const videosB: VideoCard[] = [
-//   {
-//     fileUrl: require("../../assets/images/image (10).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-//   {
-//     fileUrl: require("../../assets/images/image (10).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-//   {
-//     fileUrl: require("../../assets/images/image (10).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-//   {
-//     fileUrl: require("../../assets/images/image (10).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-//   {
-//     fileUrl: require("../../assets/images/image (10).png"),
-//     title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-//     speaker: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     speakerAvatar: require("../../assets/images/Avatar-1.png"),
-//     views: 500,
-//     favorite: 600,
-//     saved: 400,
-//     sheared: 540,
-//   },
-// ];
-
-// const recommendedItems: RecommendedItem[] = [
-//   {
-//     title: "The Beatitudes: The Path to Blessings",
-//     fileUrl: require("../../assets/images/image (6).png"),
-//     subTitle: "The Gospel of Lord by Andrew Farlay",
-//     views: 100,
-//     onPress: () => console.log("Viewing The Chosen"),
-//   },
-//   {
-//     title: "The Beatitudes: The Path to Blessings",
-//     fileUrl: require("../../assets/images/image (7).png"),
-//     subTitle: "The Gospel of Lord by Andrew Farlay",
-//     views: 150,
-//     onPress: () => console.log("Viewing Overflow Worship"),
-//   },
-//   {
-//     title: "Revival Nights",
-//     fileUrl: require("../../assets/images/image (7).png"),
-//     subTitle: "The Gospel of Lord by Andrew Farlay",
-//     views: 300,
-//     onPress: () => console.log("Viewing Revival Nights"),
-//   },
-// ];
-
-// const exploreItems: ExploreItem[] = [
-//   {
-//     title: "The elevation Chu",
-//     fileUrl: require("../../assets/images/bilble.png"),
-//     subTitle: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     views: 100,
-//     onPress: () => console.log("Viewing The Chosen"),
-//   },
-//   {
-//     title: "The Beatitudes: The Path to Blessings",
-//     fileUrl: require("../../assets/images/bilble.png"),
-//     subTitle: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     views: 150,
-//     onPress: () => console.log("Viewing Overflow Worship"),
-//   },
-//   {
-//     title: "Revival Nights",
-//     fileUrl: require("../../assets/images/bilble.png"),
-//     //
-//     subTitle: "Minister Joseph Eluwa",
-//     timeAgo: "3HRS AGO",
-//     views: 300,
-//     onPress: () => console.log("Viewing Revival Nights"),
-//   },
-// ];
-
-// const router = useRouter();
-// export default function AllContent() {
-//   const [modalVisible, setModalVisible] = useState<string | null>(null);
-//   const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
-//   const [exploreModalIndex, setExploreModalIndex] = useState<number | null>(
-//     null
-//   );
-
-//   const { isLive, ...otherParams } = useLocalSearchParams() as Params & {
-//     isLive?: string;
-//   };
-
-//   useFocusEffect(
-//     useCallback(() => {
-//       const onBackPress = () => {
-//         // Disables the back button
-//         return true;
-//       };
-  
-//       // Add the event listener
-//       const backHandler = BackHandler.addEventListener(
-//         "hardwareBackPress",
-//         onBackPress
-//       );
-      
-//       return () => backHandler.remove();
-      
-//     }, [])
-//   );
-  
-
-//   const renderExploreCard = (
-//     modalIndex: number | null,
-//     setModalIndex: React.Dispatch<React.SetStateAction<number | null>>
-//   ) => (
-//     <View className="mt-5">
-//       <Text className="text-[16px] font-rubik-semibold text-[#344054] mt-4 mb-2 ml-2">
-//         Explore Categories
-//       </Text>
-//       <ScrollView
-//         horizontal
-//         showsHorizontalScrollIndicator={false}
-//         contentContainerStyle={{ paddingHorizontal: 12 }}
-//       >
-//         {exploreItems.map((item, index) => (
-//           <View
-//             key={`explore-${index}`}
-//             className="mr-4 w-[150px] flex-col items-center relative"
-//           >
-//             <TouchableOpacity
-//               onPress={item.onPress}
-//               className="w-full h-[232px] rounded-2xl overflow-hidden relative"
-//               activeOpacity={0.9}
-//             >
-//               <Image
-//                 source={item.fileUrl}
-//                 className="w-full h-full absolute"
-//                 resizeMode="cover"
-//               />
-//               <View className="absolute top-2 bg-red-600 px-2 py-0.5 rounded-md z-10 flex flex-row items-center h-[23px] mt-3 ml-5">
-//                 <Image
-//                   source={require("../../assets/images/Vector.png")}
-//                   className="h-[10px] w-[10px]"
-//                   resizeMode="contain"
-//                 />
-//               </View>
-//               <View className="absolute bottom-2 left-2 right-2">
-//                 <Text
-//                   className="text-white text-start text-[17px] mb-6 font-rubik-semibold text-sm"
-//                   numberOfLines={2}
-//                 >
-//                   {item.title}
-//                 </Text>
-//               </View>
-//             </TouchableOpacity>
-
-//             {/* MODAL */}
-//             {modalIndex === index && (
-//               <View className="absolute mt-[30px] left-1 bg-white shadow-md rounded-lg p-3 z-50 w-36">
-//                 <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-//                   <Text className="text-[#1D2939] font-rubik ml-2">
-//                     View Details
-//                   </Text>
-//                   <Ionicons name="eye-outline" size={16} color="#3A3E50" />
-//                 </TouchableOpacity>
-//                 <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-//                   <Text className="text-sm text-[#1D2939] font-rubik ml-2">
-//                     Share
-//                   </Text>
-//                   <AntDesign name="sharealt" size={16} color="#3A3E50" />
-//                 </TouchableOpacity>
-//                 <TouchableOpacity className="py-2 flex-row items-center justify-between">
-//                   <Text className="text-[#1D2939] font-rubik mr-2">Save</Text>
-//                   <MaterialIcons name="library-add" size={18} color="#3A3E50" />
-//                 </TouchableOpacity>
-//               </View>
-//             )}
-
-//             <View className="mt-2 flex flex-col">
-//               <View className="flex flex-row w-[150px] justify-between">
-//                 <Text
-//                   className="text-[11px] text-[#1D2939] font-rubik-semibold"
-//                   numberOfLines={1}
-//                 >
-//                   {item.subTitle}
-//                 </Text>
-//                 <TouchableOpacity
-//                   onPress={() =>
-//                     setModalIndex(modalIndex === index ? null : index)
-//                   }
-//                 >
-//                   <Ionicons
-//                     name="ellipsis-vertical"
-//                     size={14}
-//                     color="#9CA3AF"
-//                   />
-//                 </TouchableOpacity>
-//               </View>
-//               <View className="flex flex-row">
-//                 <View className="flex-row items-center">
-//                   <Image
-//                     source={require("../../assets/images/Vector1.png")}
-//                     className="h-[16px] w-[16px] ml-1"
-//                     resizeMode="contain"
-//                   />
-//                   <Text className="text-[10px] text-gray-500 ml-1 mt-1 font-rubik">
-//                     {item.views}
-//                   </Text>
-//                 </View>
-//                 <View className="flex flex-row mt-2 ml-2">
-//                   <Ionicons
-//                     name="time-outline"
-//                     size={13}
-//                     color="#9CA3AF"
-//                     style={{ marginLeft: 6 }}
-//                   />
-//                   <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-//                     {item.timeAgo}
-//                   </Text>
-//                 </View>
-//               </View>
-//             </View>
-//           </View>
-//         ))}
-//       </ScrollView>
-//     </View>
-//   );
-
-//   const renderCard = (
-//     video: VideoCard,
-//     showLiveBadge = false,
-//     sectionId: string,
-//     index: number
-//   ) => {
-//     const modalKey = `${sectionId}-${index}`;
-
-//     return (
-//       <TouchableOpacity
-//         key={modalKey}
-//         onPress={() =>
-//           router.push({
-//             pathname: "/reels/Reelsviewscroll",
-//             params: {
-//               title: video.title,
-//               speaker: video.speaker,
-//               timeAgo: video.timeAgo,
-//               views: video.views.toString(),
-//               favorite: video.favorite.toString(),
-//               saved: video.saved.toString(),
-//               sheared: video.sheared.toString(),
-//               fileUrl:
-//                 typeof video.fileUrl === "number"
-//                   ? Image.resolveAssetSource(video.fileUrl).uri
-//                   : video.fileUrl,
-//               speakerAvatar:
-//                 typeof video.speakerAvatar === "number"
-//                   ? Image.resolveAssetSource(video.speakerAvatar).uri
-//                   : video.speakerAvatar,
-//             },
-//           })
-//         }
-//         className="mr-4 w-full h-[436px]"
-//         activeOpacity={0.9}
-//       >
-//         <View className="w-full h-[393px] overflow-hidden relative">
-//           <Image
-//             source={video.fileUrl}
-//             className="w-full h-full"
-//             resizeMode="cover"
-//           />
-
-//           {/* ✅ Show LIVE badge if needed */}
-//           {isLive === "true" && (
-//             <View className="absolute top-10 bg-red-600 px-2 ml-6 rounded-md z-10 flex flex-row items-center h-[23px] mt-4">
-//               <Text className="text-white text-xs font-bold">LIVE</Text>
-//               <Image
-//                 source={require("../../assets/images/Vector.png")}
-//                 className="h-[10px] w-[10px] ml-2"
-//                 resizeMode="contain"
-//               />
-//             </View>
-//           )}
-
-//           <View className="absolute bottom-3 left-3 right-3 z-10 px-3 py-2 rounded">
-//             <Text className="text-white text-sm font-rubik" numberOfLines={2}>
-//               {video.title}
-//             </Text>
-//           </View>
-//         </View>
-
-//         <View className="flex-row items-center justify-between mt-1">
-//           <View className="flex flex-row items-center">
-//             <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center relative ml-1 mt-2">
-//               <Image
-//                 source={video.speakerAvatar}
-//                 style={{
-//                   width: 80,
-//                   height: 80,
-//                   borderRadius: 999,
-//                   marginLeft: 26,
-//                   marginTop: 15,
-//                 }}
-//                 resizeMode="cover"
-//               />
-//             </View>
-//             <View className="ml-3">
-//               <View className="flex-row items center">
-//                 <Text className="ml-1 text-[13px] font-rubik-semibold text-[#344054] mt-1">
-//                   {video.speaker}
-//                 </Text>
-//                 <View className="flex flex-row mt-2 ml-2">
-//                   <Ionicons name="time-outline" size={13} color="#9CA3AF" />
-//                   <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-//                     {video.timeAgo}
-//                   </Text>
-//                 </View>
-//               </View>
-//               <View className="flex flex-row mt-2">
-//                 <View className="flex-row items-center">
-//                   <Image
-//                     source={require("../../assets/images/Vector1.png")}
-//                     className="h-[16px] w-[16px] ml-1"
-//                     resizeMode="contain"
-//                   />
-//                   <Text className="text-[10px] text-gray-500 ml-1 mt-1 font-rubik">
-//                     {video.views}
-//                   </Text>
-//                 </View>
-//                 <View className="flex-row items-center ml-4">
-//                   <AntDesign name="sharealt" size={16} color="#98A2B3" />
-//                   <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-//                     {video.sheared}
-//                   </Text>
-//                 </View>
-//                 <View className="flex-row items-center ml-6">
-//                   <Fontisto name="favorite" size={14} color="#98A2B3" />
-//                   <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-//                     {video.saved}
-//                   </Text>
-//                 </View>
-//                 <View className="flex-row items-center ml-6">
-//                   <MaterialIcons
-//                     name="favorite-border"
-//                     size={16}
-//                     color="#98A2B3"
-//                   />
-//                   <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-//                     {video.favorite}
-//                   </Text>
-//                 </View>
-//               </View>
-//             </View>
-//           </View>
-
-//           <TouchableOpacity
-//             onPress={() =>
-//               setModalVisible(modalVisible === modalKey ? null : modalKey)
-//             }
-//             className="mr-2"
-//           >
-//             <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
-//           </TouchableOpacity>
-//         </View>
-//       </TouchableOpacity>
-//     );
-//   };
-
-//   return (
-//     <ScrollView className="flex-1 pb-10">
-//       <View className="mt-9">
-//         {videos.map((video, i) => renderCard(video, true, "videos", i))}
-//       </View>
-
-//       {renderMiniCards(
-//         "Recommended Live for you",
-//         recommendedItems,
-//         pvModalIndex,
-//         setPvModalIndex
-//       )}
-
-//       <View className="mt-9 gap-12">
-//         {videosA.map((video, i) => renderCard(video, false, "videosA", i))}
-//       </View>
-
-//       {renderExploreCard(exploreModalIndex, setExploreModalIndex)}
-
-//       <View className="mt-9 gap-12">
-//         {videosB.map((video, i) => renderCard(video, false, "videosB", i))}
-//       </View>
-//     </ScrollView>
-//   );
-// }
-
-// const renderMiniCards = (
-//   title: string,
-//   items: RecommendedItem[],
-//   modalIndex: number | null,
-//   setModalIndex: React.Dispatch<React.SetStateAction<number | null>>
-// ) => (
-//   <View className="mt-5">
-//     <Text className="text-[16px] font-rubik-semibold text-[#344054] mt-4 mb-2 ml-2">
-//       {title}
-//     </Text>
-//     <ScrollView
-//       horizontal
-//       showsHorizontalScrollIndicator={false}
-//       contentContainerStyle={{ paddingHorizontal: 12 }}
-//     >
-//       {items.map((item, index) => (
-//         <View
-//           key={`${title}-${index}`}
-//           className="mr-4 w-[154px] flex-col items-center"
-//         >
-//           <TouchableOpacity
-//             onPress={item.onPress}
-//             className="w-full h-[232px] rounded-2xl overflow-hidden relative"
-//             activeOpacity={0.9}
-//           >
-//             <Image
-//               source={item.fileUrl}
-//               className="w-full h-full absolute"
-//               resizeMode="cover"
-//             />
-//             <View className="absolute inset-0 justify-center items-center">
-//               <View className="bg-white/70 p-2 rounded-full">
-//                 <Ionicons name="play" size={24} color="#6663FD" />
-//               </View>
-//             </View>
-//             <View className="absolute bottom-2 left-2 right-2">
-//               <Text
-//                 className="text-white text-start text-[14px] ml-1 mb-6 font-rubik"
-//                 numberOfLines={2}
-//               >
-//                 {item.title}
-//               </Text>
-//             </View>
-//           </TouchableOpacity>
-//           {modalIndex === index && (
-//             <View className="absolute mt-[26px] left-1 bg-white shadow-md rounded-lg p-3 z-50 w-30">
-//               <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-//                 <Text className="text-[#1D2939] font-rubik ml-2">
-//                   View Details
-//                 </Text>
-//                 <Ionicons name="eye-outline" size={16} color="#3A3E50" />
-//               </TouchableOpacity>
-//               <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
-//                 <Text className="text-sm text-[#1D2939] font-rubik ml-2">
-//                   Share
-//                 </Text>
-//                 <AntDesign name="sharealt" size={16} color="#3A3E50" />
-//               </TouchableOpacity>
-//               <TouchableOpacity className="py-2 flex-row items-center justify-between">
-//                 <Text className="text-[#1D2939] font-rubik mr-2">
-//                   Save to Library
-//                 </Text>
-//                 <MaterialIcons name="library-add" size={18} color="#3A3E50" />
-//               </TouchableOpacity>
-//             </View>
-//           )}
-//           <View className="mt-2 flex flex-col w-full">
-//             <View className="flex flex-row justify-between items-center">
-//               <Text
-//                 className="text-[12px] text-[#1D2939] font-rubik font-medium"
-//                 numberOfLines={1}
-//               >
-//                 {item.subTitle?.split(" ").slice(0, 4).join(" ") + " ..."}
-//               </Text>
-//               <TouchableOpacity
-//                 onPress={() =>
-//                   setModalIndex(modalIndex === index ? null : index)
-//                 }
-//                 className="mr-2"
-//               >
-//                 <Ionicons name="ellipsis-vertical" size={14} color="#9CA3AF" />
-//               </TouchableOpacity>
-//             </View>
-//             <View className="flex-row items-center">
-//               <Image
-//                 source={require("../../assets/images/Vector1.png")}
-//                 className="h-[16px] w-[16px] ml-1"
-//                 resizeMode="contain"
-//               />
-//               <Text className="text-[10px] text-gray-500 ml-2 mt-1 font-rubik">
-//                 {item.views}
-//               </Text>
-//             </View>
-//           </View>
-//         </View>
-//       ))}
-//     </ScrollView>
-//   </View>
-// );
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { AntDesign, Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Audio, ResizeMode, Video } from "expo-av";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View,
-  Text,
+  BackHandler,
+  Dimensions,
   Image,
+  PanResponder,
   ScrollView,
+  Share,
+  Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  BackHandler,
-  PanResponder,
-  Share,
+  View,
 } from "react-native";
-import { Video } from "expo-av";
-import {
-  Ionicons,
-  AntDesign,
-  MaterialIcons,
-} from "@expo/vector-icons";
+import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
+import { useLibraryStore } from "../store/useLibraryStore";
 import { useMediaStore } from "../store/useUploadStore";
-import { useFocusEffect, useRouter } from "expo-router";
-import { getPersistedStats, getViewed, persistStats, persistViewed } from "../utils/persistentStorage";
+import { getFavoriteState, getPersistedStats, getViewed, persistStats, persistViewed, toggleFavorite } from "../utils/persistentStorage";
+import { getDisplayName } from "../utils/userValidation";
+
+// Define interface for media items
+interface MediaItem {
+  _id?: string; // Use _id as it appears in the code
+  contentType: string;
+  fileUrl: string;
+  title: string;
+  speaker?: string;
+  uploadedBy?: string;
+  description?: string;
+  createdAt: string;
+  speakerAvatar?: string | number | { uri: string };
+  views?: number;
+  sheared?: number;
+  saved?: number;
+  comment?: number;
+  favorite?: number;
+  imageUrl?: string | { uri: string };
+}
 
 export default function AllContent() {
   const router = useRouter();
+  const screenWidth = Dimensions.get("window").width;
 
-  const mediaList = useMediaStore((state) => state.mediaList);
-  const allVideos = mediaList.filter((item) => item.contentType === "videos");
-  const otherContent = mediaList.filter((item) => item.contentType !== "videos");
-  const getContentKey = (item: any) => `${item.contentType}-${item.id}`;
+  // Ensure mediaList is always an array and get the store
+  const mediaStore = useMediaStore();
+  const mediaList: MediaItem[] = mediaStore.mediaList || [];
+  
+  // ✅ Use global video store for cross-component video management
+  const globalVideoStore = useGlobalVideoStore();
+  
+  // ✅ Use library store for saving content
+  const libraryStore = useLibraryStore();
+  
+  // 🔧 Fix infinite loop: Use useMemo to memoize filtered arrays
+  const allVideos = useMemo(() => 
+    mediaList.filter((item) => item.contentType === "videos"), 
+    [mediaList]
+  );
+  
+  const otherContent = useMemo(() => 
+    mediaList.filter((item) => item.contentType !== "videos"), 
+    [mediaList]
+  );
+
+  // Log items with missing _id for debugging
+  useEffect(() => {
+    const itemsWithoutId = mediaList.filter((item) => !item._id);
+    if (itemsWithoutId.length > 0) {
+      console.warn("Items with missing _id:", itemsWithoutId);
+    }
+  }, [mediaList]);
+
+  const getContentKey = (item: MediaItem) => `${item.contentType}-${item._id || Math.random().toString(36).substring(2)}`;
   const [contentStats, setContentStats] = useState<Record<string, any>>({});
   const [previouslyViewed, setPreviouslyViewed] = useState<any[]>([]);
-
-
+  
+  // 🎯 New favorite system state
+  const [userFavorites, setUserFavorites] = useState<Record<string, boolean>>({});
+  const [globalFavoriteCounts, setGlobalFavoriteCounts] = useState<Record<string, number>>({});
 
   // Video control state
   const videoRefs = useRef<Record<string, any>>({});
-  const [playingVideos, setPlayingVideos] = useState<Record<string, boolean>>({});
-  const [mutedVideos, setMutedVideos] = useState<Record<string, boolean>>({});
-  const [progresses, setProgresses] = useState<Record<string, number>>({});
+  const [videoVolume, setVideoVolume] = useState<number>(1.0); // 🔊 Add volume control
   const [modalVisible, setModalVisible] = useState<string | null>(null);
-  const [showOverlay, setShowOverlay] = useState<Record<string, boolean>>({});
-
-  const [hasCompleted, setHasCompleted] = useState<Record<string, boolean>>({});
-  const [videoStats, setVideoStats] = useState<Record<string, any>>({});
+  const [viewCounted, setViewCounted] = useState<Record<string, boolean>>({});
+  
+  // ✅ Get video state from global store
+  const playingVideos = globalVideoStore.playingVideos;
+  const mutedVideos = globalVideoStore.mutedVideos;
+  const progresses = globalVideoStore.progresses;
+  const showOverlay = globalVideoStore.showOverlay;
+  const hasCompleted = globalVideoStore.hasCompleted;
+  // Note: Using contentStats for all statistics instead of separate videoStats
 
   const toggleMute = (key: string) =>
-    setMutedVideos((prev) => ({ ...prev, [key]: !prev[key] }));
+    globalVideoStore.toggleVideoMute(key);
 
   const togglePlay = (key: string, video: any) => {
     const isPlaying = playingVideos[key] ?? false;
 
     if (!isPlaying) {
-      setPlayingVideos({ [key]: true });
-      setShowOverlay((prev) => ({ ...prev, [key]: false }));
-    } else {
-      setPlayingVideos({ [key]: false });
-      setShowOverlay((prev) => ({ ...prev, [key]: true }));
+      // 🔊 Ensure audio is enabled when starting to play
+      if (mutedVideos[key]) {
+        console.log(`🔊 Unmuting video ${key} on play start`);
+        globalVideoStore.toggleVideoMute(key);
+      }
+      
+      // Ensure video has proper volume for audio playback
+      if (videoVolume === 0) {
+        console.log(`🔊 Setting volume to 1.0 for audio playback`);
+        setVideoVolume(1.0);
+      }
+
+      // ✅ Reset view counting flag if video was completed (allowing new views on replay)
+      if (hasCompleted[key]) {
+        setViewCounted((prev) => ({ ...prev, [key]: false }));
+        globalVideoStore.setVideoCompleted(key, false);
+        console.log(`🔄 Reset view counting for replay via play button: ${video.title}`);
+      }
     }
 
     if (!isPlaying && hasCompleted[key]) {
       videoRefs.current[key]?.setPositionAsync(0);
     }
+
+    // ✅ Use global video management - this will pause all other videos across all components
+    globalVideoStore.playVideoGlobally(key);
   };
 
   const getTimeAgo = (createdAt: string): string => {
@@ -762,9 +142,32 @@ export default function AllContent() {
     return `${days}DAYS AGO`;
   };
 
-  const handleVideoTap = (key: string) => {
-    setPlayingVideos((prev) => ({ ...prev, [key]: false }));
-    setShowOverlay((prev) => ({ ...prev, [key]: true }));
+  const handleVideoTap = (key: string, video?: MediaItem) => {
+    const isCurrentlyPlaying = playingVideos[key] ?? false;
+    
+    if (!isCurrentlyPlaying && video) {
+      console.log(`📱 Video tapped to play: ${video.title}`);
+      
+      // 🔊 Ensure audio is enabled when tapping to play
+      if (mutedVideos[key]) {
+        globalVideoStore.toggleVideoMute(key);
+      }
+      
+      // Ensure video has proper volume for audio playback
+      if (videoVolume === 0) {
+        setVideoVolume(1.0);
+      }
+
+      // ✅ Reset view counting flag if video was completed (allowing new views on replay)
+      if (hasCompleted[key]) {
+        setViewCounted((prev) => ({ ...prev, [key]: false }));
+        globalVideoStore.setVideoCompleted(key, false);
+        console.log(`🔄 Reset view counting for replay: ${video.title}`);
+      }
+    }
+    
+    // ✅ Use global video management - this will pause all other videos across all components
+    globalVideoStore.playVideoGlobally(key);
   };
 
   const panResponder = PanResponder.create({
@@ -777,35 +180,111 @@ export default function AllContent() {
       if (activeKey) {
         const ref = videoRefs.current[activeKey];
         if (ref?.getStatusAsync && ref?.setPositionAsync) {
-          ref.getStatusAsync().then((status: { isLoaded: any; durationMillis: number; }) => {
+          ref.getStatusAsync().then((status: { isLoaded: any; durationMillis: number }) => {
             if (status.isLoaded && status.durationMillis) {
               ref.setPositionAsync((pct / 100) * status.durationMillis);
             }
           });
         }
 
-        setProgresses((prev) => ({ ...prev, [activeKey]: pct }));
+        globalVideoStore.setVideoProgress(activeKey, pct);
       }
     },
   });
 
+  // 🔊 Initialize audio settings
   useEffect(() => {
-    setShowOverlay((prev) => {
-      const updated = { ...prev };
-      let hasChanged = false;
-  
-      allVideos.forEach((v) => {
-        const key = `video-${v.id}`;
-        if (updated[key] === undefined) {
-          updated[key] = true;
-          hasChanged = true;
+    const initializeAudio = async () => {
+      try {
+        console.log("🔊 AllContent: Initializing audio settings...");
+        
+        // 🎵 Configure audio session for video playback
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          staysActiveInBackground: false,
+          playsInSilentModeIOS: true, // 🔑 This is crucial for video audio!
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+        
+        // Ensure default volume is set
+        setVideoVolume(1.0);
+        
+        // Initialize all videos as unmuted by default
+        allVideos.forEach((video, index) => {
+          const key = `video-${video._id || index}`;
+          // Check if video is muted and unmute it
+          if (globalVideoStore.mutedVideos[key]) {
+            globalVideoStore.toggleVideoMute(key);
+          }
+        });
+        
+        console.log("✅ AllContent: Audio session configured, all videos unmuted with volume 1.0");
+      } catch (error) {
+        console.error("❌ AllContent: Failed to initialize audio session:", error);
+        // Fallback: still set volume and unmute videos
+        setVideoVolume(1.0);
+        allVideos.forEach((video, index) => {
+          const key = `video-${video._id || index}`;
+          // Check if video is muted and unmute it
+          if (globalVideoStore.mutedVideos[key]) {
+            globalVideoStore.toggleVideoMute(key);
+          }
+        });
+      }
+    };
+    
+    initializeAudio();
+  }, [allVideos]);
+
+  // 🎬 Video playback control - ensure videos respond to global state changes
+  useEffect(() => {
+    const controlVideos = async () => {
+      for (const videoKey of Object.keys(playingVideos)) {
+        const ref = videoRefs.current[videoKey];
+        const shouldPlay = playingVideos[videoKey] ?? false;
+        
+        // Only proceed if ref exists and is properly initialized
+        if (ref && typeof ref.getStatusAsync === 'function') {
+          try {
+            const status = await ref.getStatusAsync();
+            if (status && status.isLoaded) {
+              if (shouldPlay && !status.isPlaying) {
+                // Play the video
+                await ref.playAsync();
+                console.log(`▶️ Playing video: ${videoKey}`);
+              } else if (!shouldPlay && status.isPlaying) {
+                // Pause the video
+                await ref.pauseAsync();
+                console.log(`⏸️ Paused video: ${videoKey}`);
+              }
+            }
+          } catch (error) {
+            // Skip videos that aren't ready yet - this is normal during mounting
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (!errorMessage.includes('Invalid view returned from registry')) {
+              console.error(`❌ Error controlling video ${videoKey}:`, error);
+            }
+          }
         }
-      });
-  
-      return hasChanged ? updated : prev;
+      }
+    };
+
+    // Add a small delay to ensure video refs are properly set
+    const timeoutId = setTimeout(controlVideos, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [playingVideos]);
+
+  useEffect(() => {
+    allVideos.forEach((v, index) => {
+      const key = `video-${v._id || index}`;
+      // Initialize overlay visibility in global store if not set
+      if (globalVideoStore.showOverlay[key] === undefined) {
+        globalVideoStore.setOverlayVisible(key, true);
+      }
     });
   }, [allVideos]);
-  
 
   useFocusEffect(
     useCallback(() => {
@@ -816,31 +295,50 @@ export default function AllContent() {
   );
 
   useEffect(() => {
-    const loadStats = async () => {
+    const loadAllData = async () => {
+      console.log("📱 AllContent: Loading persisted data...");
+      
+      // 📚 Load library data first
+      if (!libraryStore.isLoaded) {
+        await libraryStore.loadSavedItems();
+      }
+      
+      // 📊 Load stats and viewed content (media list is already loaded globally)
       const stats = await getPersistedStats();
       const viewed = await getViewed();
       setContentStats(stats || {});
       setPreviouslyViewed(viewed || []);
+      
+      // 🎯 Load favorite states for all content
+      const favoriteStates: Record<string, boolean> = {};
+      const favoriteCounts: Record<string, number> = {};
+      
+      await Promise.all(mediaList.map(async (item) => {
+        const key = getContentKey(item);
+        const { isUserFavorite, globalCount } = await getFavoriteState(key);
+        favoriteStates[key] = isUserFavorite;
+        favoriteCounts[key] = globalCount;
+      }));
+      
+      setUserFavorites(favoriteStates);
+      setGlobalFavoriteCounts(favoriteCounts);
+      
+      console.log(`✅ AllContent: Loaded ${mediaList.length} media items and stats for ${Object.keys(stats || {}).length} items`);
     };
-    loadStats();
-  }, []);
-  
+    loadAllData();
+  }, [mediaList.length]); // 🎯 Depend on actual media count
 
-
-
-
-
- 
-  
   const handleShare = async (key: string, item: any) => {
+    console.log("🔄 Share button clicked for:", item.title);
     try {
       const result = await Share.share({
         title: item.title,
         message: `Check this out: ${item.title}\n${item.fileUrl}`,
         url: item.fileUrl,
       });
-  
+
       if (result.action === Share.sharedAction) {
+        console.log("✅ Share completed successfully");
         setContentStats((prev) => {
           const updated = {
             ...prev,
@@ -853,14 +351,52 @@ export default function AllContent() {
           return updated;
         });
       }
+      
+      // ✅ Close modal after share action
+      setModalVisible(null);
     } catch (err) {
       console.warn("❌ Share error:", err);
+      // ✅ Close modal even if share failed
+      setModalVisible(null);
     }
   };
-  
-  const handleSave = (key: string, item: any) => {
+
+  const handleSave = async (key: string, item: any) => {
+    console.log("🔄 Save button clicked for:", item.title);
+    
+    const isSaved = contentStats[key]?.saved === 1;
+    
+    if (!isSaved) {
+      // Save to library
+      const libraryItem = {
+        id: key,
+        contentType: item.contentType || "content",
+        fileUrl: item.fileUrl,
+        title: item.title,
+        speaker: item.speaker,
+        uploadedBy: item.uploadedBy,
+        description: item.description,
+        createdAt: item.createdAt || new Date().toISOString(),
+        speakerAvatar: item.speakerAvatar,
+        views: contentStats[key]?.views || item.views || 0,
+        sheared: contentStats[key]?.sheared || item.sheared || 0,
+        favorite: contentStats[key]?.favorite || item.favorite || 0,
+        comment: contentStats[key]?.comment || item.comment || 0,
+        saved: 1,
+        imageUrl: item.imageUrl,
+        thumbnailUrl: item.contentType === "videos" 
+          ? item.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg"
+          : item.imageUrl || item.fileUrl,
+        originalKey: key
+      };
+      
+      await libraryStore.addToLibrary(libraryItem);
+    } else {
+      // Remove from library
+      await libraryStore.removeFromLibrary(key);
+    }
+    
     setContentStats((prev) => {
-      const isSaved = prev[key]?.saved === 1;
       const updated = {
         ...prev,
         [key]: {
@@ -869,30 +405,34 @@ export default function AllContent() {
         },
       };
       persistStats(updated);
+      console.log(`✅ Save ${isSaved ? 'removed from' : 'added to'} library:`, item.title);
       return updated;
     });
+    
+    // ✅ Close modal after save action
+    setModalVisible(null);
   };
-  
-  const handleFavorite = (key: string, item: any) => {
-    setContentStats((prev) => {
-      const isFav = prev[key]?.favorite === 1;
-      const updated = {
-        ...prev,
-        [key]: {
-          ...prev[key],
-          favorite: isFav ? 0 : 1,
-        },
-      };
-      persistStats(updated);
-      return updated;
-    });
-  };
-  
 
+  const handleFavorite = async (key: string, item: any) => {
+    console.log(`🎯 Handling favorite for: ${item.title}`);
+    
+    try {
+      // Toggle favorite using new system
+      const { isUserFavorite, globalCount } = await toggleFavorite(key);
+      
+      // Update local state immediately for UI responsiveness
+      setUserFavorites(prev => ({ ...prev, [key]: isUserFavorite }));
+      setGlobalFavoriteCounts(prev => ({ ...prev, [key]: globalCount }));
+      
+      console.log(`✅ Favorite ${isUserFavorite ? 'added' : 'removed'} for ${item.title}. Global count: ${globalCount}`);
+    } catch (error) {
+      console.error(`❌ Failed to toggle favorite for ${item.title}:`, error);
+    }
+  };
 
   const incrementView = (key: string, item: any) => {
     const alreadyExists = previouslyViewed.some((v) => v.fileUrl === item.fileUrl);
-  
+
     if (!alreadyExists) {
       const thumbnailUrl = item.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg";
       const newItem = {
@@ -902,57 +442,120 @@ export default function AllContent() {
         subTitle: item.speaker || item.description || "Unknown",
         views: contentStats[key]?.views || item.views || 0,
       };
-  
+
       setPreviouslyViewed((prev) => {
         const updated = [newItem, ...prev];
         persistViewed(updated);
         return updated;
       });
     }
-  }
-  
 
+    // ✅ Increment view count in stats
+    setContentStats((prev) => {
+      const updated = {
+        ...prev,
+        [key]: {
+          ...prev[key],
+          views: (prev[key]?.views || 0) + 1,
+          sheared: prev[key]?.sheared || item.sheared || 0,
+          favorite: prev[key]?.favorite || item.favorite || 0,
+          saved: prev[key]?.saved || item.saved || 0,
+          comment: prev[key]?.comment || item.comment || 0,
+        },
+      };
+      persistStats(updated);
+      return updated;
+    });
+  };
 
-
-
-  const renderVideoCard = (video: any, index: number) => {
-    const modalKey = `video-${video.id}`;
+  const renderVideoCard = (video: MediaItem, index: number) => {
+    const modalKey = `video-${video._id || index}`;
     const progress = progresses[modalKey] ?? 0;
     const key = getContentKey(video);
     const stats = contentStats[key] || {};
-
+  
     return (
       <View key={modalKey} className="flex flex-col mb-10">
-        <TouchableWithoutFeedback onPress={() => handleVideoTap(modalKey)}>
-          <View className="w-full h-[393px] overflow-hidden relative">
+        <TouchableWithoutFeedback onPress={() => handleVideoTap(modalKey, video)}>
+          <View className="w-full h-[400px] overflow-hidden relative">
             <Video
-              ref={(ref) => (videoRefs.current[modalKey] = ref)}
+              ref={(ref) => {
+                if (ref) {
+                  videoRefs.current[modalKey] = ref;
+                } else {
+                  // Clean up ref when component unmounts
+                  delete videoRefs.current[modalKey];
+                }
+              }}
               source={{ uri: video.fileUrl }}
               style={{ width: "100%", height: "100%", position: "absolute" }}
-              resizeMode="cover"
+              resizeMode={ResizeMode.COVER}
               isMuted={mutedVideos[modalKey] ?? false}
+              volume={mutedVideos[modalKey] ? 0.0 : videoVolume} // 🔊 Add volume control
               shouldPlay={playingVideos[modalKey] ?? false}
               useNativeControls={false}
               onPlaybackStatusUpdate={(status) => {
                 if (!status.isLoaded) return;
-              
                 const pct = status.durationMillis
                   ? (status.positionMillis / status.durationMillis) * 100
                   : 0;
-                setProgresses((prev) => ({ ...prev, [modalKey]: pct }));
-              
-                const ref = videoRefs.current[modalKey]; // ✅ Define it here
-              
+                globalVideoStore.setVideoProgress(modalKey, pct);
+                const ref = videoRefs.current[modalKey];
                 if (status.didJustFinish) {
+                  // ✅ Only increment view count when video completes and hasn't been counted yet
+                  const contentKey = getContentKey(video);
+                  if (!viewCounted[modalKey]) {
+                    incrementView(contentKey, video);
+                    setViewCounted((prev) => ({ ...prev, [modalKey]: true }));
+                    console.log(`✅ Video completed, view counted for: ${video.title}`);
+                  }
+                  
                   ref?.setPositionAsync(0);
-                  setPlayingVideos((prev) => ({ ...prev, [modalKey]: false }));
-                  setHasCompleted((prev) => ({ ...prev, [modalKey]: true }));
-                  setShowOverlay((prev) => ({ ...prev, [modalKey]: true }));
+                  globalVideoStore.pauseVideo(modalKey);
+                  globalVideoStore.setVideoCompleted(modalKey, true);
                 }
               }}
-              
             />
-
+            <View className="flex-col absolute mt-[170px] ml-[360px]">
+              <TouchableOpacity onPress={() => handleFavorite(key, video)} className="flex-col justify-center items-center">
+                <MaterialIcons
+                  name={userFavorites[key] ? "favorite" : "favorite-border"}
+                  size={30}
+                  color={userFavorites[key] ? "#D22A2A" : "#FFFFFF"}
+                />
+                <Text className="text-[10px] text-white font-rubik-semibold">
+                  {globalFavoriteCounts[key] || 0}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-col justify-center items-center mt-6">
+                <Ionicons name="chatbubble-sharp" size={30} color="white" />
+                <Text className="text-[10px] text-white font-rubik-semibold">
+                  {stats.comment === 1 ? (video.comment ?? 0) + 1 : video.comment ?? 0}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleSave(key, video)} className="flex-col justify-center items-center mt-6">
+                <MaterialIcons
+                  name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
+                  size={30}
+                  color={stats.saved === 1 ? "#FEA74E" : "#FFFFFF"}
+                />
+                <Text className="text-[10px] text-white font-rubik-semibold">
+                  {stats.saved === 1 ? (video.saved ?? 0) + 1 : video.saved ?? 0}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {/* ✅ Centered Play Button (like VideoComponent) */}
+            {!playingVideos[modalKey] && showOverlay[modalKey] && (
+              <View className="absolute inset-0 justify-center items-center">
+                <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
+                  <View className="bg-white/70 p-3 rounded-full">
+                    <Ionicons name="play" size={32} color="#FEA74E" />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+            
+            {/* Video Title */}
             {!playingVideos[modalKey] && showOverlay[modalKey] && (
               <View className="absolute bottom-9 left-3 right-3 px-4 py-2 rounded-md">
                 <Text className="text-white font-semibold text-[14px]" numberOfLines={2}>
@@ -960,13 +563,10 @@ export default function AllContent() {
                 </Text>
               </View>
             )}
-
+            
+            {/* Bottom Controls (Progress bar and Mute button only) */}
             {!playingVideos[modalKey] && showOverlay[modalKey] && (
               <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
-                <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
-                  <Ionicons name="play" size={24} color="#FEA74E" />
-                </TouchableOpacity>
-
                 <View className="flex-1 h-1 bg-white/30 rounded-full relative" {...panResponder.panHandlers}>
                   <View className="h-full bg-[#FEA74E] rounded-full" style={{ width: `${progress}%` }} />
                   <View
@@ -984,7 +584,6 @@ export default function AllContent() {
                     }}
                   />
                 </View>
-
                 <TouchableOpacity onPress={() => toggleMute(modalKey)}>
                   <Ionicons
                     name={mutedVideos[modalKey] ? "volume-mute" : "volume-high"}
@@ -996,17 +595,17 @@ export default function AllContent() {
             )}
           </View>
         </TouchableWithoutFeedback>
-
         {/* Footer */}
         <View className="flex-row items-center justify-between mt-1 px-3">
           <View className="flex flex-row items-center">
             <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center relative ml-1 mt-2">
               <Image
                 source={
-                  typeof video.speakerAvatar === "string" &&
-                  video.speakerAvatar.startsWith("http")
+                  typeof video.speakerAvatar === "string" && video.speakerAvatar.startsWith("http")
                     ? { uri: video.speakerAvatar.trim() }
-                    : video.speakerAvatar
+                    : typeof video.speakerAvatar === "object" && video.speakerAvatar
+                    ? video.speakerAvatar
+                    : require("../../assets/images/Avatar-1.png")
                 }
                 style={{ width: 30, height: 30, borderRadius: 999 }}
                 resizeMode="cover"
@@ -1015,73 +614,77 @@ export default function AllContent() {
             <View className="ml-3">
               <View className="flex-row items-center">
                 <Text className="ml-1 text-[13px] font-rubik-semibold text-[#344054] mt-1">
-                  {video.speaker}
+                  {getDisplayName(video.speaker, video.uploadedBy)}
                 </Text>
                 <View className="flex flex-row mt-2 ml-2">
                   <Ionicons name="time-outline" size={14} color="#9CA3AF" />
                   <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-                  {getTimeAgo(video.createdAt)}
+                    {getTimeAgo(video.createdAt)}
                   </Text>
                 </View>
               </View>
               <View className="flex-row mt-2">
-  <View className="flex-row items-center">
-    <Image
-      source={require("../../assets/images/Vector1.png")}
-      className="h-[20px] w-[20px] ml-1"
-      resizeMode="contain"
-    />
-    <Text className="text-[10px] text-gray-500 ml-1 mt-1 font-rubik">
-      {stats.views ?? video.views}
-    </Text>
-  </View>
-
-  <TouchableOpacity onPress={() => handleShare(key, video)} className="flex-row videos-center ml-4">
-    <AntDesign name="sharealt" size={20} color="#98A2B3" />
-    <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-      {stats.sheared ?? video.sheared}
-    </Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity onPress={() => handleSave(key, video)} className="flex-row videos-center ml-9">
-    <MaterialIcons
-      name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
-      size={20}
-      color={stats.saved === 1 ? "#FEA74E" : "#98A2B3"}
-    />
-    <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-      {stats.saved === 1 ? (video.saved ?? 0) + 1 : video.saved ?? 0}
-    </Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity onPress={() => handleFavorite(key, video)} className="ml-9 flex-row">
-    <MaterialIcons
-      name={stats.favorite === 1 ? "favorite" : "favorite-border"}
-      size={20}
-      color={stats.favorite === 1 ? "#FEA74E" : "#98A2B3"}
-    />
-    <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-      {stats.favorite === 1 ? (video.favorite ?? 0) + 1 : video.favorite ?? 0}
-    </Text>
-  </TouchableOpacity>
-</View>
+                <View className="flex-row items-center">
+                  <AntDesign name="eyeo" size={24} color="#98A2B3" />
+                  <Text className="text-[10px] text-gray-500 ml-1 mt-1 font-rubik">
+                    {stats.views ?? video.views ?? 0}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => handleShare(key, video)} className="flex-row items-center ml-4">
+                  <Feather name="send" size={24} color="#98A2B3" />
+                  <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
+                    {stats.sheared ?? video.sheared ?? 0}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
           <TouchableOpacity
-            onPress={() =>
-              setModalVisible(modalVisible === modalKey ? null : modalKey)
-            }
+            onPress={() => setModalVisible(modalVisible === modalKey ? null : modalKey)}
             className="mr-2"
           >
             <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
+        
+        {/* ✅ Modal with touch-outside-to-close functionality */}
+        {modalVisible === modalKey && (
+          <>
+            {/* ✅ Full-screen overlay to close modal when touching outside */}
+            <TouchableWithoutFeedback onPress={() => setModalVisible(null)}>
+              <View className="absolute inset-0 z-40" />
+            </TouchableWithoutFeedback>
+            
+            {/* ✅ Modal content - removed TouchableWithoutFeedback to allow button interactions */}
+            <View className="absolute bottom-24 right-16 bg-white shadow-md rounded-lg p-3 z-50 w-[170px] h-[140]">
+              <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
+                <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
+                <Ionicons name="eye-outline" size={22} color="#1D2939" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleShare(modalKey, video)}
+                className="py-2 border-b border-gray-200 flex-row items-center justify-between"
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">Share</Text>
+                <Feather name="send" size={22} color="#1D2939" />
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-row items-center justify-between mt-6" onPress={() => handleSave(modalKey, video)}>
+                <Text className="text-[#1D2939] font-rubik ml-2">Save to Library</Text>
+                <MaterialIcons
+                  name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
+                  size={22}
+                  color={stats.saved === 1 ? "#1D2939" : "#1D2939"}
+                />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </View>
     );
   };
 
   return (
-    <ScrollView className="flex-1 bg-white">
+    <ScrollView className="flex-1">
       {/* 🔥 Videos Section with Full Layout */}
       {allVideos.length > 0 && (
         <>
@@ -1095,15 +698,15 @@ export default function AllContent() {
         <>
           <Text className="text-[18px] font-bold px-4 mt-5 mb-3">📁 Other Content</Text>
           {otherContent.map((item) => (
-            <View key={item.id} className="mb-6 px-4">
+            <View key={item._id || Math.random().toString(36).substring(2)} className="mb-6 px-4">
               <TouchableOpacity
                 onPress={() =>
                   router.push({
                     pathname: "/reels/Reelsviewscroll",
                     params: {
                       title: item.title,
-                      speaker: item.description,
-                      timeAgo: item.timeAgo || new Date(item.createdAt).toLocaleDateString(),
+                      speaker: item.description || "Unknown",
+                      timeAgo: getTimeAgo(item.createdAt),
                       imageUrl: item.fileUrl,
                       speakerAvatar: typeof item.speakerAvatar === "string"
                         ? item.speakerAvatar
@@ -1122,7 +725,7 @@ export default function AllContent() {
                   resizeMode="cover"
                 />
                 <Text className="text-lg font-semibold">{item.title}</Text>
-                <Text className="text-sm text-gray-500">{item.description}</Text>
+                <Text className="text-sm text-gray-500">{item.description || "No description"}</Text>
               </TouchableOpacity>
             </View>
           ))}
@@ -1135,4 +738,3 @@ export default function AllContent() {
     </ScrollView>
   );
 }
-

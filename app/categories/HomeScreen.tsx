@@ -6,11 +6,11 @@ import PagerView from "react-native-pager-view";
 
 import BottomNav from "@/app/components/BottomNav";
 
-import LibraryScreen from "../screens/LibraryScreen";
-import HomeTabContent from "./HomeTabContent";
-import CommunityScreen from "../screens/CommunityScreen";
-import AccountScreen from "../screens/AccountScreen";
 import { useLocalSearchParams } from "expo-router";
+import AccountScreen from "../screens/AccountScreen";
+import CommunityScreen from "../screens/CommunityScreen";
+import LibraryScreen from "../screens/library/LibraryScreen";
+import HomeTabContent from "./HomeTabContent";
 
 const tabList = ["Home", "Community", "Library", "Account"];
 
@@ -40,7 +40,7 @@ export default function HomeScreen() {
   }, [defaultTabParam]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }} className="w-full ">
       <PagerView
         style={{ flex: 1 }}
         initialPage={0}
@@ -71,11 +71,12 @@ export default function HomeScreen() {
           backgroundColor: "#fff",
         }}
       >
-        <BottomNav selectedTab={selectedTab} setSelectedTab={handleTabChange} />
+        
       </View>
+      <View className="bg-white top-16">
+  <BottomNav selectedTab={selectedTab} setSelectedTab={handleTabChange} />
+</View>
     </View>
   );
 }
-function handleTabChange(defaultTabParam: string | string[]) {
-  throw new Error("Function not implemented.");
-}
+

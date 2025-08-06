@@ -1,18 +1,17 @@
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
-  Text,
-  TouchableOpacity,
-  View,
-  Image,
-  TextInput,
-  Alert,
-  BackHandler,
+    Alert,
+    Image,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
 import AuthHeader from "../components/AuthHeader";
-import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { API_BASE_URL } from "../utils/api";
 
 export default function LoginScreen() {
@@ -81,13 +80,27 @@ export default function LoginScreen() {
       }
 
       if (data.user) {
-        await AsyncStorage.setItem("user", JSON.stringify(data.user));
+        // 🛡️ Validate user data before saving to prevent "Anonymous User" issue
+        if (data.user.firstName && data.user.lastName) {
+          await AsyncStorage.setItem("user", JSON.stringify(data.user));
+          console.log("✅ Complete user data saved:", {
+            firstName: data.user.firstName,
+            lastName: data.user.lastName,
+            hasAvatar: !!data.user.avatar
+          });
+        } else {
+          console.error("🚨 BLOCKED: Login API returned incomplete user data!");
+          console.error("   Incomplete data:", data.user);
+          console.error("   This would have caused 'Anonymous User' to appear on uploads.");
+          Alert.alert("Login Issue", "Incomplete user profile. Please contact support.");
+          return;
+        }
       }
 
       // Navigate to profile setup
       router.replace("/categories/HomeScreen");
     } catch (error) {
-      // console.error("Login error:", error);
+      console.error("Login error:", error);
       Alert.alert("Login Error", "An unexpected error occurred.");
     }
   };
@@ -136,6 +149,7 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 className="ml-3 w-full"
+                 placeholderTextColor="#090E24"
               />
             </View>
             {emailError && (
@@ -152,7 +166,8 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
-                className="ml-2 flex-1"
+                className="ml-4 flex-1"
+                 placeholderTextColor="#090E24"
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <FontAwesome6

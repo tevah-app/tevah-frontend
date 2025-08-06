@@ -189,7 +189,9 @@ function ChurchNameAndLocation() {
 
   return (
     <View className="flex flex-col bg-[#FCFCFD] mx-auto w-full justify-center items-center">
-      <AuthHeader title="Profile Setup" />
+       <View className="px-4 mt-6">
+        <AuthHeader title="Profile Setup" />
+      </View>
       <View className="flex flex-col w-[333px] mt-4">
         <ProgressBar currentStep={3} totalSteps={7} />
         <Text className="text-[#1D2939] font-semibold mt-3 ml-1">

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, Image, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 import { API_BASE_URL } from "../utils/api";
 
 const defaultAvatar = require("../../assets/images/image (5).png");
@@ -34,7 +34,29 @@ export default function Header() {
 
         const data = await response.json();
         console.log("👤 User API response:", data);
-        setUser(data.data);
+        
+        // 🔄 If API returns complete user data, save it to AsyncStorage
+        if (data.data && data.data.firstName && data.data.lastName) {
+          setUser(data.data);
+          await AsyncStorage.setItem("user", JSON.stringify(data.data));
+          console.log("✅ Updated AsyncStorage with complete API user data:", {
+            firstName: data.data.firstName,
+            lastName: data.data.lastName,
+            hasAvatar: !!data.data.avatar
+          });
+          
+          // 🔄 Now that we have complete user data, refresh any media that was stuck with "Anonymous User"
+          try {
+            const { useMediaStore } = await import("../store/useUploadStore");
+            await useMediaStore.getState().forceRefreshWithCompleteUserData();
+            console.log("✅ Triggered media refresh with complete user data");
+          } catch (error) {
+            console.error("❌ Failed to trigger media refresh:", error);
+          }
+        } else {
+          console.warn("⚠️ API returned incomplete user data:", data.data);
+          setUser(data.data); // Still set in UI, but don't save to AsyncStorage
+        }
       } catch (error) {
         console.error("❌ Failed to fetch user:", error);
       }

@@ -1,13 +1,14 @@
-import React, { useState } from "react";
-import { View, Image, Text, ScrollView, TouchableOpacity, ImageSourcePropType } from "react-native";
 import {
-  Ionicons,
-  AntDesign,
-  MaterialIcons,
-  Fontisto,
+    AntDesign,
+    Fontisto,
+    Ionicons,
+    MaterialIcons,
 } from "@expo/vector-icons";
+import React, { useCallback, useState } from "react";
+import { Image, ImageSourcePropType, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
-import { router, useRouter } from "expo-router";
+import { router, useFocusEffect, useRouter } from "expo-router";
+import { useMediaStore } from "../store/useUploadStore";
 
 
 interface VideoCard {
@@ -346,6 +347,14 @@ export default function LiveComponent() {
   const [favModalIndex, setFavModalIndex] = useState<number | null>(null);
   let globalIndex = 0;
 
+  const mediaStore = useMediaStore();
+  useFocusEffect(
+    useCallback(() => {
+      mediaStore.refreshUserDataForExistingMedia();
+    }, [])
+  );
+  const liveVideos = mediaStore.mediaList.filter(item => item.contentType === "live");
+
 const renderVideoCard = (video: VideoCard, index: number, p0: string) => {
     const modalKey = `video-${index}`;
 
@@ -402,7 +411,7 @@ const renderVideoCard = (video: VideoCard, index: number, p0: string) => {
           <View className="flex flex-row items-center">
             <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center relative ml-1 mt-2">
               <Image
-                source={video.speakerAvatar}
+                source={getImageSource(video.speakerAvatar) as ImageSourcePropType}
                 style={{
                   width: 80,
                   height: 80,

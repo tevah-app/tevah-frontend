@@ -71,7 +71,9 @@ export default function SignUpScreen() {
       setPasswordError("Password is required");
       isValid = false;
     } else if (!validatePassword(password)) {
-      setPasswordError("Password must be at least 6 characters long and include both letters and numbers");
+      setPasswordError(
+        "Password must be at least 6 characters long and include both letters and numbers"
+      );
       isValid = false;
     }
   
@@ -96,11 +98,22 @@ export default function SignUpScreen() {
           alert(data.message || "Something went wrong");
         }
       } catch (err) {
-        // console.error("Signup error:", err);
-        alert("Signup failed. Try again.");
+        // 🛜 Handle network error by assuming code may still have been sent
+        alert("Network issue occurred. Please check your email for the code.");
+  
+        // Redirect to verification screen regardless
+        router.push({
+          pathname: "/auth/codeVerification",
+          params: {
+            emailAddress,
+            firstName,
+            lastName,
+          },
+        });
       }
     }
   };
+  
   
 
   const validateEmail = (email: string) => {
@@ -151,7 +164,7 @@ export default function SignUpScreen() {
             </Text>
           </View>
 
-          <View className="flex flex-col justify-center mt-6 items-center w-[33px]">
+          <View className="flex flex-col justify-center mt-9 items-center w-[33px]">
             {/* First Name */}
             <View className="flex flex-col w-[333px] mt-2">
               <View className="flex flex-row rounded-[15px] h-[56px] border border-[#9D9FA7] items-center px-3">
@@ -164,6 +177,7 @@ export default function SignUpScreen() {
                   value={firstName}
                   onChangeText={setFirstName}
                   className="ml-3 w-full text-[#090E24]"
+                    placeholderTextColor="#090E24"
                 />
               </View>
               {firstNameError && (
@@ -185,6 +199,7 @@ export default function SignUpScreen() {
                   value={lastName}
                   onChangeText={setLastName}
                   className="ml-3 w-full text-[#090E24]"
+                    placeholderTextColor="#090E24"
                 />
               </View>
               {lastNameError && (
@@ -207,7 +222,8 @@ export default function SignUpScreen() {
                   onChangeText={setEmailAddress}
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  className="ml-3 w-full"
+                  className="ml-5 w-full"
+                    placeholderTextColor="#090E24"
                 />
               </View>
               {emailError && (
@@ -224,7 +240,8 @@ export default function SignUpScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
-                  className="ml-2 flex-1"
+                  className="ml-6 flex-1"
+                    placeholderTextColor="#090E24"
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -245,21 +262,21 @@ export default function SignUpScreen() {
           </View>
 
           {/* Sign Up Button */}
-          <View className="flex flex-col mt-10 justify-center items-center w-full">
+          <View className="flex flex-col mt-24 justify-center items-center w-full">
             <TouchableOpacity
               onPress={handleSignUpValidation}
               className="bg-[#090E24] p-2 rounded-full mt-3 w-[333px] h-[45px]"
             >
-              <Text className="text-white text-center text-base">Sign Up</Text>
+              <Text className="text-white text-center font-rubik mt-2">Sign Up</Text>
             </TouchableOpacity>
 
-            <Text className="text-1xl font-semibold mt-6">
+            <Text className="text-1xl font-semibold mt-9">
               ALREADY HAVE AN ACCOUNT?
             </Text>
 
             <TouchableOpacity
               onPress={() => router.push("/auth/login")}
-              className="mt-6"
+              className="mt-9"
             >
               <Text className="text-[#344054] text-sm font-medium">
                 Sign In

@@ -1,32 +1,25 @@
-
-
-
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated as RNAnimated,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  Alert,
+    Alert,
+    Animated as RNAnimated,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withTiming
+} from 'react-native-reanimated';
+import Icon from 'react-native-vector-icons/FontAwesome';
 import AuthHeader from "../components/AuthHeader";
 import FailureCard from "../components/failureCard";
 import SuccessfulCard from "../components/successfulCard";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming
-} from 'react-native-reanimated';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import InfoCard from "../components/successfulCard";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API_BASE_URL } from "../utils/api";
-import Constants from "expo-constants";
-
 
 export default function CodeVerification() {
   const router = useRouter();
@@ -42,8 +35,6 @@ export default function CodeVerification() {
   const dropdownAnim = useRef(new RNAnimated.Value(-200)).current;
   const emailAddress = params.emailAddress as string;
   const password = params.password as string;
-  const firstName = params.firstName as string;
-  const lastName = params.lastName as string;
 
   const FLOOR_Y = 280;
   const FINAL_REST_Y = 70;
@@ -151,12 +142,8 @@ export default function CodeVerification() {
       });
 
       const data = await response.json();
-      console.log("📦 Response from backend:", data);
 
       if (data.success) {
-        console.log("✅ Code verified. Logging in...");
-      
-        // Log in to get token
         const loginResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -165,21 +152,34 @@ export default function CodeVerification() {
             password: password,
           }),
         });
-      
+
         const loginData = await loginResponse.json();
-      
+
         if (loginData.success) {
           await AsyncStorage.setItem("token", loginData.token);
-          await AsyncStorage.setItem("user", JSON.stringify(loginData.user));
-      
-          console.log("🔐 Token stored. Proceeding...");
-          triggerBounceDrop("success");
+          
+          // 🛡️ Validate user data before saving to prevent "Anonymous User" issue
+          if (loginData.user && loginData.user.firstName && loginData.user.lastName) {
+            await AsyncStorage.setItem("user", JSON.stringify(loginData.user));
+            console.log("✅ Complete user data saved after verification:", {
+              firstName: loginData.user.firstName,
+              lastName: loginData.user.lastName,
+              hasAvatar: !!loginData.user.avatar
+            });
+            triggerBounceDrop("success");
+          } else {
+            console.error("🚨 BLOCKED: Verification login returned incomplete user data!");
+            console.error("   Incomplete data:", loginData.user);
+            Alert.alert("Login Issue", "Incomplete user profile. Please contact support.");
+            triggerBounceDrop("failure");
+            return;
+          }
         } else {
           Alert.alert("Login Failed", loginData.message || "Try signing in manually.");
           triggerBounceDrop("failure");
         }
       }
-      
+
     } catch (err) {
       console.error("❌ Error verifying code:", err);
       Alert.alert("Server Error", "Unable to verify code. Try again later.");
@@ -215,105 +215,96 @@ export default function CodeVerification() {
   };
 
   const getInputStyle = () => ({
+    height: 40,
+    width: 40,
+    fontSize: 18,
+    textAlign: 'center',
     textAlignVertical: 'center',
-    paddingVertical: 0,
-    lineHeight: 40,
+    includeFontPadding: false,
+    padding: 0,
+    margin: 0,
+    borderWidth: 1,
+    borderColor: '#9D9FA7',
+    borderRadius: 9,
+    backgroundColor: 'white',
   });
 
   return (
-    <View className="flex flex-col w-full justify-center items-center bg-[#F9FAFB] mx-auto relative">
+    <View style={{ flex: 1, backgroundColor: '#F9FAFB', alignItems: 'center' }}>
       <AuthHeader title="Code Verification" />
 
       <RNAnimated.View
-        className="absolute w-full items-center z-10 px-4"
-        style={{ transform: [{ translateY: dropdownAnim }] }}
+        style={{
+          position: 'absolute',
+          width: '100%',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          transform: [{ translateY: dropdownAnim }],
+          zIndex: 10,
+        }}
       >
         {showSuccess && <SuccessfulCard text="Successfully verified" />}
-        {showFailure && <FailureCard  text="Invalid code" onClose={hideDropdown} />}
+        {showFailure && <FailureCard text="Invalid code" onClose={hideDropdown} />}
       </RNAnimated.View>
 
-      <View className="flex flex-col justify-center items-center px-4 mt-5 w-full">
-        <View className="flex flex-col w-[333px]">
-          <Text className="text-4xl font-bold mt-3 text-[#1D2939]">
-            Verify with code
-          </Text>
-          <Text className="mt-2 text-[#1D2939] text-base">
-            Enter the 6-character code we sent to {emailAddress}
-          </Text>
-        </View>
+      <View className="w-[333px] mt-10 ml-2">
+  <Text className="text-4xl font-bold text-[#1D2939]">
+    Verify with code
+  </Text>
+  <Text className="mt-2 text-base text-[#1D2939]">
+    Enter the 6-character code we sent to {emailAddress}
+  </Text>
+</View>
 
-        <View className="flex flex-row w-[333px] justify-between items-center mt-6">
-          <View className="flex flex-row w-[150px] h-[40px] items-center justify-around">
-            {[0, 1, 2].map((i) => (
-              <TextInput
-                key={i}
-                value={codeArray[i]}
-                onChangeText={(text) => handleCodeChange(text, i)}
-                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
-                className="border border-[#9D9FA7] w-[40px] h-[40px] rounded-[9px] text-center text-lg"
-                keyboardType="default"
-                autoCapitalize="characters"
-                maxLength={6}
-                textContentType="oneTimeCode"
-                style={getInputStyle()}
-              />
-            ))}
-          </View>
 
-          <View className="flex flex-row w-[150px] h-[40px] items-center justify-around">
-            {[3, 4, 5].map((i) => (
-              <TextInput
-                key={i}
-                value={codeArray[i]}
-                onChangeText={(text) => handleCodeChange(text, i)}
-                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
-                className="border border-[#9D9FA7] w-[40px] h-[40px] rounded-[9px] text-center text-lg"
-                keyboardType="default"
-                autoCapitalize="characters"
-                maxLength={6}
-                textContentType="oneTimeCode"
-                style={getInputStyle()}
-              />
-            ))}
-          </View>
-        </View>
+      <View style={{ flexDirection: 'row', marginTop: 30, gap: 12 }}>
+        {codeArray.map((char, i) => (
+          <TextInput
+            key={i}
+            value={char}
+            onChangeText={(text) => handleCodeChange(text, i)}
+            onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
+            keyboardType="default"
+            autoCapitalize="characters"
+            maxLength={6}
+            textContentType="oneTimeCode"
+            style={getInputStyle()}
+          />
+        ))}
       </View>
 
-      <View className="flex flex-col mt-12 justify-center items-center w-full md:w-[400px] lg:w-[450px]">
-        <TouchableOpacity
-          onPress={onVerifyPress}
-          className="bg-[#090E24] p-2 rounded-full mt-3 w-[333px] h-[45px] flex-row items-center justify-center"
-          disabled={isVerifying}
-        >
-          <View className="flex-row items-center justify-center">
-            <Text className="text-white text-base">
-              {isVerifying ? 'Verifying...' : 'Verify'}
-            </Text>
-            {isVerifying && (
-              <Animated.View style={[{ marginLeft: 8 }, animatedStyle]}>
-                <Icon name="star" size={16} color="#6663FD" />
-              </Animated.View>
-            )}
-          </View>
-        </TouchableOpacity>
+      <TouchableOpacity
+        onPress={onVerifyPress}
+        disabled={isVerifying}
+        style={{
+          backgroundColor: '#090E24',
+          height: 45,
+          width: 333,
+          marginTop: 40,
+          borderRadius: 999,
+          justifyContent: 'center',
+          alignItems: 'center',
+          flexDirection: 'row',
+        }}
+      >
+        <Text style={{ color: 'white', fontSize: 16 }}>
+          {isVerifying ? 'Verifying...' : 'Verify'}
+        </Text>
+        {isVerifying && (
+          <Animated.View style={[{ marginLeft: 8 }, animatedStyle]}>
+            <Icon name="star" size={16} color="#6663FD" />
+          </Animated.View>
+        )}
+      </TouchableOpacity>
 
-        <View className="flex-row items-center mt-6">
-          <Text className="text-base font-semibold">Didn't get a code? </Text>
-          <TouchableOpacity onPress={handleResend} disabled={isResending}>
-            <Text className="text-base font-semibold text-[#6663FD]">
-              {isResending ? 'Resending...' : 'Resend'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View style={{ flexDirection: 'row', marginTop: 24 }}>
+        <Text style={{ fontSize: 16, fontWeight: '600' }}>Didn't get a code? </Text>
+        <TouchableOpacity onPress={handleResend} disabled={isResending}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#6663FD' }}>
+            {isResending ? 'Resending...' : 'Resend'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
-
-
-
-
-
-
-
-

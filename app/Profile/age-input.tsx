@@ -80,7 +80,11 @@ export default function AgeInputScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <AuthHeader title="Profile set up" showCancel />
+     
+
+      <View className="px-4 mt-6">
+        <AuthHeader title="Profile Setup" />
+      </View>
 
       <View className="flex flex-col w-[333px] mx-auto mt-2">
         <ProgressBar currentStep={1} totalSteps={7} />
@@ -108,14 +112,34 @@ export default function AgeInputScreen() {
           </Text>
         </TouchableOpacity>
         {showPicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            onChange={onChange}
-            maximumDate={new Date()}
-          />
-        )}
+  <View
+    style={{
+      backgroundColor: "white", // forces light mode background
+      width: "100%",
+      height: Platform.OS === "ios" ? 300 : undefined,
+      justifyContent: "center",
+    }}
+    className="mt-2"
+  >
+<View className="flex-row justify-center">
+
+<DateTimePicker
+      value={date}
+      mode="date"
+      display={Platform.OS === "ios" ? "spinner" : "default"}
+      onChange={onChange}
+      maximumDate={new Date()}
+      style={{
+        height: Platform.OS === "ios" ? 300 : undefined,
+        width: "100%",
+        backgroundColor: "white", // ✅ force visible background
+      }}
+      themeVariant="light" // ✅ force light text
+    />
+</View>
+  </View>
+)}
+
       </View>
 
       <View className="w-full px-6 mb-16">

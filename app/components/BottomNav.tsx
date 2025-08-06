@@ -85,7 +85,7 @@
 //                 className="flex-row w-full h-full items-center justify-center gap-4 bg-white/20"
 //               >
 //                 <TouchableOpacity
-//                   className="bg-[#FEA74E] px-4 py-2 rounded-full border-4 border-white"
+//                   className="bg-[#256E63] px-4 py-2 rounded-full border-4 border-white"
 //                   onPress={handleUpload}
 //                 >
 //                   <Text className="text-white font-medium">Upload</Text>
@@ -101,7 +101,7 @@
 //             ) : (
 //               <View className="flex-row w-full h-full items-center justify-center gap-4 bg-white/70 px-2 rounded-2xl">
 //                 <TouchableOpacity
-//                   className="bg-[#FEA74E] px-4 py-2 rounded-full border-4 border-white"
+//                   className="bg-[#256E63] px-4 py-2 rounded-full border-4 border-white"
 //                   onPress={handleUpload}
 //                 >
 //                   <Text className="text-white font-medium">Upload</Text>
@@ -135,11 +135,11 @@
 //                 <IconComponent
 //                   name={name}
 //                   size={24}
-//                   color={isActive ? "#FEA74E" : "#000"}
+//                   color={isActive ? "#256E63" : "#000"}
 //                 />
 //                 <Text
 //                   className={`text-xs mt-1 ${
-//                     isActive ? "text-[#FEA74E]" : "text-black"
+//                     isActive ? "text-[#256E63]" : "text-black"
 //                   }`}
 //                 >
 //                   {label}
@@ -157,7 +157,7 @@
 //             <AntDesign
 //               name={showActions ? "close" : "plus"}
 //               size={18}
-//               color="#FEA74E"
+//               color="#256E63"
 //             />
 //           </TouchableOpacity>
 //         </View>
@@ -176,11 +176,11 @@
 //                 <IconComponent
 //                   name={name}
 //                   size={24}
-//                   color={isActive ? "#FEA74E" : "#000"}
+//                   color={isActive ? "#256E63" : "#000"}
 //                 />
 //                 <Text
 //                   className={`text-xs mt-1 ${
-//                     isActive ? "text-[#FEA74E]" : "text-black"
+//                     isActive ? "text-[#256E63]" : "text-black"
 //                   }`}
 //                 >
 //                   {label}
@@ -208,22 +208,22 @@
 
 
 
-import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-} from "react-native";
+    AntDesign,
+    Ionicons,
+    MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
-import Upload from "../categories/upload";
+import React, { useState } from "react";
 import {
-  AntDesign,
-  MaterialCommunityIcons,
-  Ionicons,
-} from "@expo/vector-icons";
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import Upload from "../categories/upload";
 import { useMediaStore } from "../store/useUploadStore";
 
 // Bottom tab config
@@ -296,7 +296,7 @@ export default function BottomNav({
       {showActions && (
      <View className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[220px] flex-row justify-center items-center z-20 mb-12">
 
-          <View className="rounded-2xl overflow-hidden w-full h-[70px] mb-7">
+          <View className="rounded-2xl overflow-hidden w-full h-[70px] mb-12">
             {Platform.OS !== "web" ? (
               <BlurView
                 intensity={80}
@@ -304,7 +304,7 @@ export default function BottomNav({
                 className="flex-row w-full h-full items-center justify-center gap-4 bg-white/20"
               >
                 <TouchableOpacity
-                  className="bg-[#FEA74E] px-4 py-2 rounded-full border-4 border-white"
+                  className="bg-[#256E63] px-4 py-2 rounded-full border-4 border-white"
                   onPress={handleUpload}
                 >
                   <Text className="text-white font-medium">Upload</Text>
@@ -326,7 +326,7 @@ export default function BottomNav({
             ) : (
               <View className="flex-row w-full h-full items-center justify-center gap-4 bg-white/70 px-2 rounded-2xl">
                 <TouchableOpacity
-                  className="bg-[#FEA74E] px-4 py-2 rounded-full border-4 border-white"
+                  className="bg-[#256E63] px-4 py-2 rounded-full border-4 border-white"
                   onPress={handleUpload}
                 >
                   <Text className="text-white font-medium">Upload</Text>
@@ -351,7 +351,7 @@ export default function BottomNav({
       )}
 
       {/* Bottom Navigation Bar */}
-      <View className="absolute bottom-0 left-0 right-0 h-20 bg-white flex-row justify-around items-center shadow-lg z-10 mb-14">
+      <View className="absolute bottom-0 left-0 right-0 h-24 bg-white flex-row justify-around items-center shadow-lg z-10 mb-16">
         {/* First half of tabs */}
         {Object.entries(tabConfig)
           .slice(0, 2)
@@ -361,16 +361,16 @@ export default function BottomNav({
               <TouchableOpacity
                 key={tab}
                 onPress={() => setSelectedTab(tab)}
-                className="items-center justify-center"
+                className="items-center justify-center "
               >
                 <IconComponent
                   name={name}
                   size={24}
-                  color={isActive ? "#FEA74E" : "#000"}
+                  color={isActive ? "#256E63" : "#000"}
                 />
                 <Text
                   className={`text-xs mt-1 ${
-                    isActive ? "text-[#FEA74E]" : "text-black"
+                    isActive ? "text-[#256E63]" : "text-black"
                   }`}
                 >
                   {label}
@@ -388,7 +388,7 @@ export default function BottomNav({
             <AntDesign
               name={showActions ? "close" : "plus"}
               size={18}
-              color="#FEA74E"
+              color="#256E63"
             />
           </TouchableOpacity>
         </View>
@@ -407,11 +407,11 @@ export default function BottomNav({
                 <IconComponent
                   name={name}
                   size={24}
-                  color={isActive ? "#FEA74E" : "#000"}
+                  color={isActive ? "#256E63" : "#000"}
                 />
                 <Text
                   className={`text-xs mt-1 ${
-                    isActive ? "text-[#FEA74E]" : "text-black"
+                    isActive ? "text-[#256E63]" : "text-black"
                   }`}
                 >
                   {label}

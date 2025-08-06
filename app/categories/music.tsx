@@ -432,29 +432,29 @@
 
 
 
+import {
+    AntDesign,
+    Feather,
+    Ionicons,
+    MaterialIcons
+} from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-  Share,
+    Image,
+    PanResponder, View as RNView,
+    ScrollView,
+    Share,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import {
-  Ionicons,
-  AntDesign,
-  MaterialIcons,
-  Fontisto,
-  Feather,
-} from "@expo/vector-icons";
 import { useMediaStore } from "../store/useUploadStore";
-import { Audio } from "expo-av";
-import { PanResponder, View as RNView } from "react-native";
 import {
-  getPersistedStats,
-  getViewed,
-  persistStats,
+    getPersistedStats,
+    getViewed,
+    persistStats,
 } from "../utils/persistentStorage";
 
 interface AudioCard {
@@ -634,6 +634,13 @@ const recommendedItems: RecommendedItem[] = [
 ];
 
 export default function Music() {
+  const mediaStore = useMediaStore();
+  useFocusEffect(
+    useCallback(() => {
+      mediaStore.refreshUserDataForExistingMedia();
+    }, [])
+  );
+  const musicItems = mediaStore.mediaList.filter(item => item.contentType === "music");
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
   const [rsModalIndex, setRsModalIndex] = useState<number | null>(null);
@@ -663,11 +670,6 @@ export default function Music() {
       }
     >
   >({});
-
-  const { mediaList } = useMediaStore();
-  const uploadedAudios = mediaList.filter(
-    (item) => item.contentType === "music" || item.type === "music"
-  );
 
   const handleShare = async (key: string, Audio: AudioCard) => {
     try {
@@ -1346,7 +1348,7 @@ useEffect(() => {
   return (
     <ScrollView className="flex-1">
       {/* 1. Most Recent Upload */}
-      {uploadedAudios.length > 0 && (
+      {musicItems.length > 0 && (
         <View className="mt-4">
           <Text className="text-[#344054] text-[16px] font-rubik-semibold mb-4 ml-2">
             Most Recent
@@ -1354,24 +1356,24 @@ useEffect(() => {
           {renderAudioCard(
             {
               fileUrl:
-                typeof uploadedAudios[0].fileUrl === "string"
-                  ? { uri: uploadedAudios[0].fileUrl }
-                  : uploadedAudios[0].fileUrl,
-              title: uploadedAudios[0].title,
-              speaker: uploadedAudios[0].speaker ?? "Uploaded Speaker",
-              timeAgo: getTimeAgo(uploadedAudios[0].createdAt),
+                typeof musicItems[0].fileUrl === "string"
+                  ? { uri: musicItems[0].fileUrl }
+                  : musicItems[0].fileUrl,
+              title: musicItems[0].title,
+              speaker: musicItems[0].speaker ?? "Uploaded Speaker",
+              timeAgo: getTimeAgo(musicItems[0].createdAt),
               speakerAvatar:
-                typeof uploadedAudios[0].speakerAvatar === "string"
-                  ? { uri: uploadedAudios[0].speakerAvatar }
-                  : uploadedAudios[0].speakerAvatar ||
+                typeof musicItems[0].speakerAvatar === "string"
+                  ? { uri: musicItems[0].speakerAvatar }
+                  : musicItems[0].speakerAvatar ||
                     require("../../assets/images/Avatar-1.png"),
-              favorite: uploadedAudios[0].favorite ?? 0,
-              views: uploadedAudios[0].viewCount ?? 0,
-              saved: uploadedAudios[0].saved ?? 0,
-              sheared: uploadedAudios[0].sheared ?? 0,
+              favorite: musicItems[0].favorite ?? 0,
+              views: musicItems[0].viewCount ?? 0,
+              saved: musicItems[0].saved ?? 0,
+              sheared: musicItems[0].sheared ?? 0,
             },
             0,
-            `uploaded-recent-${uploadedAudios[0]._id ?? "0"}`,
+            `uploaded-recent-${musicItems[0]._id ?? "0"}`,
             "progress"
           )}
         </View>
@@ -1386,12 +1388,12 @@ useEffect(() => {
       )}
 
       {/* 3. First 4 Explore More Music */}
-      {uploadedAudios.length > 1 && (
+      {musicItems.length > 1 && (
         <View className="mt-9 gap-12">
           <Text className="text-[#344054] text-[16px] font-rubik-semibold mb-4 ml-2">
             Explore More Music
           </Text>
-          {uploadedAudios.slice(1, 5).map((audio, index) => (
+          {musicItems.slice(1, 5).map((audio, index) => (
             <View key={`ExploreMoreFirst-${audio._id}-${index}`}>
               {renderAudioCard(
                 {
@@ -1427,12 +1429,12 @@ useEffect(() => {
       )}
 
       {/* 5. Remaining Explore More Music */}
-      {uploadedAudios.length > 5 && (
+      {musicItems.length > 5 && (
         <View className="mt-9 gap-12">
           <Text className="text-[#344054] text-[16px] font-rubik-semibold mb-4 ml-2">
             Explore More Music
           </Text>
-          {uploadedAudios.slice(5).map((audio, index) => (
+          {musicItems.slice(5).map((audio, index) => (
             <View key={`ExploreMoreRest-${audio._id}-${index}`}>
               {renderAudioCard(
                 {

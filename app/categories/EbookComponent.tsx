@@ -1,11 +1,13 @@
-import React, { useState } from "react";
-import { View, Text, Image, TouchableOpacity, ScrollView } from "react-native";
 import {
-  Ionicons,
   AntDesign,
-  MaterialIcons,
   Fontisto,
+  Ionicons,
+  MaterialIcons,
 } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useMediaStore } from "../store/useUploadStore";
 
 interface VideoCard {
   imageUrl: any;
@@ -184,6 +186,13 @@ const recommendedItems: RecommendedItem[] = [
 ];
 
 export default function EbookComponent() {
+  const mediaStore = useMediaStore();
+  useFocusEffect(
+    useCallback(() => {
+      mediaStore.refreshUserDataForExistingMedia();
+    }, [])
+  );
+  const ebookItems = mediaStore.mediaList.filter(item => item.contentType === "ebook");
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
   const [rsModalIndex, setRsModalIndex] = useState<number | null>(null);
