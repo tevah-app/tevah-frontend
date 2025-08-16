@@ -229,10 +229,10 @@ const AvatarSelection = () => {
   );
 
   return (
-    <View className="flex-1 items-center bg-[#FCFCFD] w-full relative">
+    <View className="flex-1 items-center bg-[#FCFCFD] w-full relative mt-6">
       
 
-      <View className="px-4 mt-6">
+      <View className="w-[370px]">
         <AuthHeader title="Profile Setup" />
       </View>
 

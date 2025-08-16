@@ -105,7 +105,7 @@ export default function Header() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => router.push("/categories/HomeScreen")}
+            onPress={() => router.push("/downloads/DownloadsScreen")}
           >
             <Ionicons name="download-outline" size={24} color="#090E24" />
           </TouchableOpacity>

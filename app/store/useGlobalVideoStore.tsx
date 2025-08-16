@@ -10,6 +10,10 @@ interface VideoPlayerState {
   progresses: Record<string, number>;
   hasCompleted: Record<string, boolean>;
   
+  // Auto-play state
+  isAutoPlayEnabled: boolean;
+  currentlyVisibleVideo: string | null;
+  
   // Actions
   playVideo: (videoKey: string) => void;
   pauseVideo: (videoKey: string) => void;
@@ -21,6 +25,11 @@ interface VideoPlayerState {
   
   // Global play function - pauses all others and plays selected video
   playVideoGlobally: (videoKey: string) => void;
+  
+  // Auto-play functions
+  enableAutoPlay: () => void;
+  disableAutoPlay: () => void;
+  handleVideoVisibilityChange: (visibleVideoKey: string | null) => void;
 }
 
 export const useGlobalVideoStore = create<VideoPlayerState>()(
@@ -32,6 +41,10 @@ export const useGlobalVideoStore = create<VideoPlayerState>()(
     mutedVideos: {},
     progresses: {},
     hasCompleted: {},
+    
+    // Auto-play initial state (enabled globally for Twitter-like experience)
+    isAutoPlayEnabled: true,
+    currentlyVisibleVideo: null,
 
     // Individual video actions
     playVideo: (videoKey: string) => {
@@ -126,6 +139,84 @@ export const useGlobalVideoStore = create<VideoPlayerState>()(
 
           return {
             currentlyPlayingVideo: videoKey,
+            playingVideos: newPlayingVideos,
+            showOverlay: newShowOverlay
+          };
+        }
+      });
+    },
+
+    // Auto-play functions
+    enableAutoPlay: () => {
+      set({ isAutoPlayEnabled: true });
+      console.log('📱 Auto-play enabled');
+    },
+
+    disableAutoPlay: () => {
+      set((state) => ({
+        isAutoPlayEnabled: false,
+        currentlyVisibleVideo: null,
+        currentlyPlayingVideo: null,
+        playingVideos: {},
+        showOverlay: Object.keys(state.playingVideos).reduce((acc, key) => ({
+          ...acc,
+          [key]: true
+        }), {})
+      }));
+      console.log('📱 Auto-play disabled, all videos paused');
+    },
+
+    handleVideoVisibilityChange: (visibleVideoKey: string | null) => {
+      set((state) => {
+        if (!state.isAutoPlayEnabled) {
+          return state;
+        }
+
+        // If no video is visible or same video is still visible, no change needed
+        if (visibleVideoKey === state.currentlyVisibleVideo) {
+          return state;
+        }
+
+        console.log(`📱 Video visibility changed: ${state.currentlyVisibleVideo} → ${visibleVideoKey}`);
+
+        if (!visibleVideoKey) {
+          // No video is visible, pause all
+          const newPlayingVideos: Record<string, boolean> = {};
+          const newShowOverlay: Record<string, boolean> = {};
+          
+          Object.keys(state.playingVideos).forEach(key => {
+            newPlayingVideos[key] = false;
+            newShowOverlay[key] = true;
+          });
+
+          return {
+            ...state,
+            currentlyPlayingVideo: null,
+            currentlyVisibleVideo: null,
+            playingVideos: newPlayingVideos,
+            showOverlay: newShowOverlay
+          };
+        } else {
+          // A new video is visible, pause all others and play this one
+          const newPlayingVideos: Record<string, boolean> = {};
+          const newShowOverlay: Record<string, boolean> = {};
+          
+          // Pause all other videos
+          Object.keys(state.playingVideos).forEach(key => {
+            newPlayingVideos[key] = false;
+            newShowOverlay[key] = true;
+          });
+          
+          // Play the visible video
+          newPlayingVideos[visibleVideoKey] = true;
+          newShowOverlay[visibleVideoKey] = false;
+
+          console.log(`📱 Auto-playing visible video: ${visibleVideoKey}`);
+
+          return {
+            ...state,
+            currentlyPlayingVideo: visibleVideoKey,
+            currentlyVisibleVideo: visibleVideoKey,
             playingVideos: newPlayingVideos,
             showOverlay: newShowOverlay
           };

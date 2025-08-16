@@ -6,6 +6,8 @@ import {
   BackHandler,
   Dimensions,
   Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   PanResponder,
   ScrollView,
   Share,
@@ -14,6 +16,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import useVideoViewport from "../hooks/useVideoViewport";
 import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
 import { useLibraryStore } from "../store/useLibraryStore";
 import { useMediaStore } from "../store/useUploadStore";
@@ -42,6 +45,9 @@ interface MediaItem {
 export default function AllContent() {
   const router = useRouter();
   const screenWidth = Dimensions.get("window").width;
+  
+  // 📱 Viewport detection for auto-play
+  const { calculateVideoVisibility } = useVideoViewport();
 
   // Ensure mediaList is always an array and get the store
   const mediaStore = useMediaStore();
@@ -63,6 +69,146 @@ export default function AllContent() {
     mediaList.filter((item) => item.contentType !== "videos"), 
     [mediaList]
   );
+
+  // 🎵 Music items (audio with thumbnails)
+  const allMusic = useMemo(() => 
+    mediaList.filter((item) => item.contentType === "music"), 
+    [mediaList]
+  );
+
+  // 🕘 Most Recent item (videos or music) to appear on top
+  const mostRecentItem = useMemo(() => {
+    const candidates = [...allVideos, ...allMusic];
+    if (candidates.length === 0) return null as MediaItem | null;
+    const sorted = [...candidates].sort((a, b) => {
+      const ad = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bd = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bd - ad;
+    });
+    return sorted[0] || null;
+  }, [allVideos, allMusic]);
+
+  const recentId = mostRecentItem?._id;
+  const videosExcludingRecent = useMemo(() => 
+    recentId ? allVideos.filter(v => v._id !== recentId) : allVideos,
+    [allVideos, recentId]
+  );
+  const musicExcludingRecent = useMemo(() => 
+    recentId ? allMusic.filter(m => m._id !== recentId) : allMusic,
+    [allMusic, recentId]
+  );
+
+  // 🎵 Audio playback state for Music items
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [soundMap, setSoundMap] = useState<Record<string, Audio.Sound>>({});
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [pausedAudioMap, setPausedAudioMap] = useState<Record<string, number>>({});
+  const [audioProgressMap, setAudioProgressMap] = useState<Record<string, number>>({}); // 0..1
+  const [audioDurationMap, setAudioDurationMap] = useState<Record<string, number>>({});
+  const [audioMuteMap, setAudioMuteMap] = useState<Record<string, boolean>>({});
+
+  const playAudio = async (uri: string, id: string) => {
+    if (!uri) return;
+    if (isLoadingAudio) return;
+    setIsLoadingAudio(true);
+    try {
+      // Pause currently playing if different
+      if (playingAudioId && playingAudioId !== id && soundMap[playingAudioId]) {
+        try {
+          await soundMap[playingAudioId].pauseAsync();
+          const status = await soundMap[playingAudioId].getStatusAsync();
+          if (status.isLoaded) {
+            setPausedAudioMap((prev) => ({ ...prev, [playingAudioId]: status.positionMillis ?? 0 }));
+          }
+        } catch {}
+      }
+
+      const existing = soundMap[id];
+      if (existing) {
+        const status = await existing.getStatusAsync();
+        if (status.isLoaded) {
+          if (status.isPlaying) {
+            const pos = status.positionMillis ?? 0;
+            await existing.pauseAsync();
+            setPausedAudioMap((prev) => ({ ...prev, [id]: pos }));
+            setPlayingAudioId(null);
+          } else {
+            const resumePos = pausedAudioMap[id] ?? 0;
+            await existing.playFromPositionAsync(resumePos);
+            setPlayingAudioId(id);
+
+            let duration = audioDurationMap[id];
+            if (!duration) {
+              const updated = await existing.getStatusAsync();
+              if (updated.isLoaded && updated.durationMillis) {
+                duration = updated.durationMillis;
+                setAudioDurationMap((prev) => ({ ...prev, [id]: duration! }));
+              }
+            }
+            setAudioProgressMap((prev) => ({ ...prev, [id]: (resumePos || 0) / Math.max(duration || 1, 1) }));
+          }
+          setIsLoadingAudio(false);
+          return;
+        } else {
+          setSoundMap((prev) => {
+            const updated = { ...prev };
+            delete updated[id];
+            return updated;
+          });
+        }
+      }
+
+      const resumePos = pausedAudioMap[id] ?? 0;
+      const { sound } = await Audio.Sound.createAsync(
+        { uri },
+        {
+          shouldPlay: true,
+          isMuted: audioMuteMap[id] ?? false,
+          positionMillis: resumePos,
+        }
+      );
+      setSoundMap((prev) => ({ ...prev, [id]: sound }));
+      setPlayingAudioId(id);
+
+      const initial = await sound.getStatusAsync();
+      if (initial.isLoaded && typeof initial.durationMillis === 'number') {
+        const safeDur = initial.durationMillis || 1;
+        setAudioDurationMap((prev) => ({ ...prev, [id]: safeDur }));
+        setAudioProgressMap((prev) => ({ ...prev, [id]: (resumePos || 0) / safeDur }));
+      }
+
+      sound.setOnPlaybackStatusUpdate(async (status) => {
+        if (!status.isLoaded || typeof status.durationMillis !== 'number') return;
+        const safeDur = status.durationMillis || 1;
+        setAudioProgressMap((prev) => ({ ...prev, [id]: (status.positionMillis || 0) / safeDur }));
+        setAudioDurationMap((prev) => ({ ...prev, [id]: safeDur }));
+        if (status.didJustFinish) {
+          try { await sound.unloadAsync(); } catch {}
+          setSoundMap((prev) => { const u = { ...prev }; delete u[id]; return u; });
+          setPlayingAudioId((curr) => (curr === id ? null : curr));
+          setPausedAudioMap((prev) => ({ ...prev, [id]: 0 }));
+          setAudioProgressMap((prev) => ({ ...prev, [id]: 0 }));
+        }
+      });
+    } catch (err) {
+      console.error('❌ Audio playback error:', err);
+    } finally {
+      setIsLoadingAudio(false);
+    }
+  };
+
+  const pauseAllAudio = useCallback(async () => {
+    try {
+      const ids = Object.keys(soundMap);
+      for (const id of ids) {
+        const snd = soundMap[id];
+        if (snd) {
+          try { await snd.pauseAsync(); } catch {}
+        }
+      }
+      setPlayingAudioId(null);
+    } catch {}
+  }, [soundMap]);
 
   // Log items with missing _id for debugging
   useEffect(() => {
@@ -86,48 +232,24 @@ export default function AllContent() {
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [viewCounted, setViewCounted] = useState<Record<string, boolean>>({});
   
+  // 📱 Scroll-based auto-play state
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [currentlyVisibleVideo, setCurrentlyVisibleVideo] = useState<string | null>(null);
+  const contentLayoutsRef = useRef<Record<string, { y: number; height: number; type: 'video' | 'music'; uri?: string }>>({});
+  const lastScrollYRef = useRef<number>(0);
+  
   // ✅ Get video state from global store
   const playingVideos = globalVideoStore.playingVideos;
   const mutedVideos = globalVideoStore.mutedVideos;
   const progresses = globalVideoStore.progresses;
   const showOverlay = globalVideoStore.showOverlay;
   const hasCompleted = globalVideoStore.hasCompleted;
+  const isAutoPlayEnabled = globalVideoStore.isAutoPlayEnabled;
+  const handleVideoVisibilityChange = globalVideoStore.handleVideoVisibilityChange;
   // Note: Using contentStats for all statistics instead of separate videoStats
 
   const toggleMute = (key: string) =>
     globalVideoStore.toggleVideoMute(key);
-
-  const togglePlay = (key: string, video: any) => {
-    const isPlaying = playingVideos[key] ?? false;
-
-    if (!isPlaying) {
-      // 🔊 Ensure audio is enabled when starting to play
-      if (mutedVideos[key]) {
-        console.log(`🔊 Unmuting video ${key} on play start`);
-        globalVideoStore.toggleVideoMute(key);
-      }
-      
-      // Ensure video has proper volume for audio playback
-      if (videoVolume === 0) {
-        console.log(`🔊 Setting volume to 1.0 for audio playback`);
-        setVideoVolume(1.0);
-      }
-
-      // ✅ Reset view counting flag if video was completed (allowing new views on replay)
-      if (hasCompleted[key]) {
-        setViewCounted((prev) => ({ ...prev, [key]: false }));
-        globalVideoStore.setVideoCompleted(key, false);
-        console.log(`🔄 Reset view counting for replay via play button: ${video.title}`);
-      }
-    }
-
-    if (!isPlaying && hasCompleted[key]) {
-      videoRefs.current[key]?.setPositionAsync(0);
-    }
-
-    // ✅ Use global video management - this will pause all other videos across all components
-    globalVideoStore.playVideoGlobally(key);
-  };
 
   const getTimeAgo = (createdAt: string): string => {
     const now = new Date();
@@ -142,32 +264,56 @@ export default function AllContent() {
     return `${days}DAYS AGO`;
   };
 
-  const handleVideoTap = (key: string, video?: MediaItem) => {
-    const isCurrentlyPlaying = playingVideos[key] ?? false;
-    
-    if (!isCurrentlyPlaying && video) {
-      console.log(`📱 Video tapped to play: ${video.title}`);
+  const handleVideoTap = (key: string, video?: MediaItem, index?: number) => {
+    // Navigate to reels view with the video list for swipeable navigation
+    if (video && index !== undefined) {
+      console.log(`📱 Video tapped to navigate to reels: ${video.title}`);
       
-      // 🔊 Ensure audio is enabled when tapping to play
-      if (mutedVideos[key]) {
-        globalVideoStore.toggleVideoMute(key);
-      }
+      // Pause all videos before navigation
+      globalVideoStore.pauseAllVideos();
+      setCurrentlyVisibleVideo(null);
       
-      // Ensure video has proper volume for audio playback
-      if (videoVolume === 0) {
-        setVideoVolume(1.0);
-      }
+      // Prepare the full video list for TikTok-style navigation
+      const videoListForNavigation = allVideos.map((v, idx) => ({
+        title: v.title,
+        speaker: getDisplayName(v.speaker, v.uploadedBy),
+        timeAgo: getTimeAgo(v.createdAt),
+        views: contentStats[getContentKey(v)]?.views || v.views || 0,
+        sheared: contentStats[getContentKey(v)]?.sheared || v.sheared || 0,
+        saved: contentStats[getContentKey(v)]?.saved || v.saved || 0,
+        favorite: globalFavoriteCounts[getContentKey(v)] || v.favorite || 0,
+        fileUrl: v.fileUrl,
+        imageUrl: v.fileUrl,
+        speakerAvatar: typeof v.speakerAvatar === "string" 
+          ? v.speakerAvatar 
+          : v.speakerAvatar || require("../../assets/images/Avatar-1.png"),
+        _id: v._id,
+        contentType: v.contentType,
+        description: v.description,
+        createdAt: v.createdAt,
+        uploadedBy: v.uploadedBy,
+      }));
 
-      // ✅ Reset view counting flag if video was completed (allowing new views on replay)
-      if (hasCompleted[key]) {
-        setViewCounted((prev) => ({ ...prev, [key]: false }));
-        globalVideoStore.setVideoCompleted(key, false);
-        console.log(`🔄 Reset view counting for replay: ${video.title}`);
-      }
+      router.push({
+        pathname: "/reels/Reelsviewscroll",
+        params: {
+          title: video.title,
+          speaker: getDisplayName(video.speaker, video.uploadedBy),
+          timeAgo: getTimeAgo(video.createdAt),
+          views: String(contentStats[getContentKey(video)]?.views || video.views || 0),
+          sheared: String(contentStats[getContentKey(video)]?.sheared || video.sheared || 0),
+          saved: String(contentStats[getContentKey(video)]?.saved || video.saved || 0),
+          favorite: String(globalFavoriteCounts[getContentKey(video)] || video.favorite || 0),
+          imageUrl: video.fileUrl,
+          speakerAvatar: typeof video.speakerAvatar === "string" 
+            ? video.speakerAvatar 
+            : video.speakerAvatar || require("../../assets/images/Avatar-1.png").toString(),
+          category: "videos",
+          videoList: JSON.stringify(videoListForNavigation),
+          currentIndex: String(index),
+        },
+      });
     }
-    
-    // ✅ Use global video management - this will pause all other videos across all components
-    globalVideoStore.playVideoGlobally(key);
   };
 
   const panResponder = PanResponder.create({
@@ -212,7 +358,7 @@ export default function AllContent() {
         
         // Initialize all videos as unmuted by default
         allVideos.forEach((video, index) => {
-          const key = `video-${video._id || index}`;
+          const key = `video-${video._id || video.fileUrl || index}`;
           // Check if video is muted and unmute it
           if (globalVideoStore.mutedVideos[key]) {
             globalVideoStore.toggleVideoMute(key);
@@ -225,7 +371,7 @@ export default function AllContent() {
         // Fallback: still set volume and unmute videos
         setVideoVolume(1.0);
         allVideos.forEach((video, index) => {
-          const key = `video-${video._id || index}`;
+          const key = `video-${video._id || video.fileUrl || index}`;
           // Check if video is muted and unmute it
           if (globalVideoStore.mutedVideos[key]) {
             globalVideoStore.toggleVideoMute(key);
@@ -237,48 +383,9 @@ export default function AllContent() {
     initializeAudio();
   }, [allVideos]);
 
-  // 🎬 Video playback control - ensure videos respond to global state changes
-  useEffect(() => {
-    const controlVideos = async () => {
-      for (const videoKey of Object.keys(playingVideos)) {
-        const ref = videoRefs.current[videoKey];
-        const shouldPlay = playingVideos[videoKey] ?? false;
-        
-        // Only proceed if ref exists and is properly initialized
-        if (ref && typeof ref.getStatusAsync === 'function') {
-          try {
-            const status = await ref.getStatusAsync();
-            if (status && status.isLoaded) {
-              if (shouldPlay && !status.isPlaying) {
-                // Play the video
-                await ref.playAsync();
-                console.log(`▶️ Playing video: ${videoKey}`);
-              } else if (!shouldPlay && status.isPlaying) {
-                // Pause the video
-                await ref.pauseAsync();
-                console.log(`⏸️ Paused video: ${videoKey}`);
-              }
-            }
-          } catch (error) {
-            // Skip videos that aren't ready yet - this is normal during mounting
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (!errorMessage.includes('Invalid view returned from registry')) {
-              console.error(`❌ Error controlling video ${videoKey}:`, error);
-            }
-          }
-        }
-      }
-    };
-
-    // Add a small delay to ensure video refs are properly set
-    const timeoutId = setTimeout(controlVideos, 100);
-    
-    return () => clearTimeout(timeoutId);
-  }, [playingVideos]);
-
   useEffect(() => {
     allVideos.forEach((v, index) => {
-      const key = `video-${v._id || index}`;
+      const key = `video-${v._id || v.fileUrl || index}`;
       // Initialize overlay visibility in global store if not set
       if (globalVideoStore.showOverlay[key] === undefined) {
         globalVideoStore.setOverlayVisible(key, true);
@@ -286,11 +393,131 @@ export default function AllContent() {
     });
   }, [allVideos]);
 
+  // 📱 Handle scroll events to detect video visibility
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!isAutoPlayEnabled) return;
+
+    const { contentOffset, layoutMeasurement } = event.nativeEvent;
+    const scrollY = contentOffset.y;
+    const screenHeight = layoutMeasurement.height;
+    lastScrollYRef.current = scrollY;
+    const viewportTop = scrollY;
+    const viewportBottom = scrollY + screenHeight;
+
+    let mostVisibleKey: string | null = null;
+    let maxRatio = 0;
+
+    Object.entries(contentLayoutsRef.current).forEach(([key, layout]) => {
+      const itemTop = layout.y;
+      const itemBottom = layout.y + layout.height;
+      const intersectionTop = Math.max(viewportTop, itemTop);
+      const intersectionBottom = Math.min(viewportBottom, itemBottom);
+      const visibleHeight = Math.max(0, intersectionBottom - intersectionTop);
+      const ratio = visibleHeight / Math.max(1, layout.height);
+      if (ratio > maxRatio) {
+        maxRatio = ratio;
+        mostVisibleKey = key;
+      }
+    });
+
+    // Require minimal visibility to avoid flicker at edges
+    const selectedKey: string | null = maxRatio >= 0.15 ? mostVisibleKey : null;
+    // Control playback across videos and music using recorded content types
+    const entry = selectedKey ? contentLayoutsRef.current[selectedKey] : null;
+    if (entry?.type === 'video') {
+      // Pause any audio and play the visible video
+      pauseAllAudio();
+      // Auto-play disabled: do not trigger visibility-based video play
+      // handleVideoVisibilityChange(selectedKey);
+      setCurrentlyVisibleVideo(selectedKey);
+    } else if (entry?.type === 'music') {
+      // Pause all videos and play this audio
+      globalVideoStore.pauseAllVideos();
+      if (entry.uri && selectedKey) {
+        playAudio(entry.uri, selectedKey);
+      }
+      // Auto-play disabled: do not affect global video visibility
+      // handleVideoVisibilityChange(null);
+      setCurrentlyVisibleVideo(null);
+    } else {
+      // Nothing clearly visible; pause all
+      globalVideoStore.pauseAllVideos();
+      pauseAllAudio();
+      // Auto-play disabled: do not affect global video visibility
+      // handleVideoVisibilityChange(null);
+      setCurrentlyVisibleVideo(null);
+    }
+  }, [isAutoPlayEnabled, allVideos, handleVideoVisibilityChange]);
+
+  const recomputeVisibilityFromLayouts = useCallback(() => {
+    if (!isAutoPlayEnabled) return;
+    const scrollY = lastScrollYRef.current;
+    const screenHeight = Dimensions.get('window').height;
+    const viewportTop = scrollY;
+    const viewportBottom = scrollY + screenHeight;
+
+    let mostVisibleKey: string | null = null;
+    let maxRatio = 0;
+
+    Object.entries(contentLayoutsRef.current).forEach(([key, layout]) => {
+      const itemTop = layout.y;
+      const itemBottom = layout.y + layout.height;
+      const intersectionTop = Math.max(viewportTop, itemTop);
+      const intersectionBottom = Math.min(viewportBottom, itemBottom);
+      const visibleHeight = Math.max(0, intersectionBottom - intersectionTop);
+      const ratio = visibleHeight / Math.max(1, layout.height);
+      if (ratio > maxRatio) {
+        maxRatio = ratio;
+        mostVisibleKey = key;
+      }
+    });
+
+    const selectedKey: string | null = maxRatio >= 0.15 ? mostVisibleKey : null;
+    const entry = selectedKey ? contentLayoutsRef.current[selectedKey] : null;
+    if (entry?.type === 'video') {
+      pauseAllAudio();
+      // Auto-play disabled: do not trigger visibility-based video play
+      // handleVideoVisibilityChange(selectedKey);
+      setCurrentlyVisibleVideo(selectedKey);
+    } else if (entry?.type === 'music') {
+      globalVideoStore.pauseAllVideos();
+      if (entry.uri && selectedKey) {
+        playAudio(entry.uri, selectedKey);
+      }
+      // Auto-play disabled: do not affect global video visibility
+      // handleVideoVisibilityChange(null);
+      setCurrentlyVisibleVideo(null);
+    } else {
+      globalVideoStore.pauseAllVideos();
+      pauseAllAudio();
+      // Auto-play disabled: do not affect global video visibility
+      // handleVideoVisibilityChange(null);
+      setCurrentlyVisibleVideo(null);
+    }
+  }, [isAutoPlayEnabled, allVideos, handleVideoVisibilityChange]);
+
+  // 📱 Initialize auto-play after component mounts
+  useEffect(() => {
+    // Auto-play disabled globally; skip initial visibility computation
+  }, [allVideos.length, isAutoPlayEnabled, recomputeVisibilityFromLayouts]);
+
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => true;
       const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
       return () => sub.remove();
+    }, [])
+  );
+
+  // 📱 Cleanup: Pause all videos when component loses focus
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // Pause all videos when leaving the screen
+        globalVideoStore.pauseAllVideos();
+        globalVideoStore.handleVideoVisibilityChange(null);
+        setCurrentlyVisibleVideo(null);
+      };
     }, [])
   );
 
@@ -468,15 +695,34 @@ export default function AllContent() {
     });
   };
 
+
+
   const renderVideoCard = (video: MediaItem, index: number) => {
-    const modalKey = `video-${video._id || index}`;
+    const modalKey = `video-${video._id || video.fileUrl || index}`;
     const progress = progresses[modalKey] ?? 0;
     const key = getContentKey(video);
     const stats = contentStats[key] || {};
   
     return (
-      <View key={modalKey} className="flex flex-col mb-10">
-        <TouchableWithoutFeedback onPress={() => handleVideoTap(modalKey, video)}>
+      <View 
+        key={modalKey} 
+        className="flex flex-col mb-10"
+        onLayout={(e) => {
+          const { y, height } = e.nativeEvent.layout;
+          contentLayoutsRef.current[modalKey] = { y, height, type: 'video' };
+        }}
+      >
+        <TouchableWithoutFeedback onPress={() => {
+          const isCurrentlyPlaying = playingVideos[modalKey] ?? false;
+          if (isCurrentlyPlaying) {
+            // If video is playing, pause it
+            globalVideoStore.pauseVideo(modalKey);
+            setCurrentlyVisibleVideo(null);
+          } else {
+            // If video is paused, navigate to reels
+            handleVideoTap(modalKey, video, index);
+          }
+        }}>
           <View className="w-full h-[400px] overflow-hidden relative">
             <Video
               ref={(ref) => {
@@ -544,19 +790,31 @@ export default function AllContent() {
                 </Text>
               </TouchableOpacity>
             </View>
-            {/* ✅ Centered Play Button (like VideoComponent) */}
-            {!playingVideos[modalKey] && showOverlay[modalKey] && (
-              <View className="absolute inset-0 justify-center items-center">
-                <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
-                  <View className="bg-white/70 p-3 rounded-full">
-                    <Ionicons name="play" size={32} color="#FEA74E" />
-                  </View>
-                </TouchableOpacity>
+            {/* ✅ Centered Play/Pause Button - always visible */}
+            <View className="absolute inset-0 justify-center items-center">
+              <TouchableOpacity onPress={() => handleVideoTap(modalKey, video, index)}>
+                <View className={`${playingVideos[modalKey] ? 'bg-black/30' : 'bg-white/70'} p-3 rounded-full`}>
+                  <Ionicons 
+                    name={playingVideos[modalKey] ? "pause" : "play"} 
+                    size={32} 
+                    color={playingVideos[modalKey] ? "#FFFFFF" : "#FEA74E"} 
+                  />
+                </View>
+              </TouchableOpacity>
+            </View>
+            
+            {/* 📱 Auto-play indicator when this card is the active auto-playing video */}
+            {playingVideos[modalKey] && currentlyVisibleVideo === modalKey && (
+              <View className="absolute top-4 left-4">
+                <View className="bg-black/50 px-2 py-1 rounded-full flex-row items-center">
+                  <View className="w-2 h-2 bg-red-500 rounded-full mr-2" />
+                  <Text className="text-white text-xs font-rubik">Auto-playing</Text>
+                </View>
               </View>
             )}
             
-            {/* Video Title */}
-            {!playingVideos[modalKey] && showOverlay[modalKey] && (
+            {/* Video Title - show when paused */}
+            {!playingVideos[modalKey] && (
               <View className="absolute bottom-9 left-3 right-3 px-4 py-2 rounded-md">
                 <Text className="text-white font-semibold text-[14px]" numberOfLines={2}>
                   {video.title}
@@ -564,35 +822,33 @@ export default function AllContent() {
               </View>
             )}
             
-            {/* Bottom Controls (Progress bar and Mute button only) */}
-            {!playingVideos[modalKey] && showOverlay[modalKey] && (
-              <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
-                <View className="flex-1 h-1 bg-white/30 rounded-full relative" {...panResponder.panHandlers}>
-                  <View className="h-full bg-[#FEA74E] rounded-full" style={{ width: `${progress}%` }} />
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: `${progress}%`,
-                      transform: [{ translateX: -6 }],
-                      top: -5,
-                      width: 12,
-                      height: 12,
-                      borderRadius: 6,
-                      backgroundColor: "#FFFFFF",
-                      borderWidth: 1,
-                      borderColor: "#FEA74E",
-                    }}
-                  />
-                </View>
-                <TouchableOpacity onPress={() => toggleMute(modalKey)}>
-                  <Ionicons
-                    name={mutedVideos[modalKey] ? "volume-mute" : "volume-high"}
-                    size={20}
-                    color="#FEA74E"
-                  />
-                </TouchableOpacity>
+            {/* Bottom Controls (Progress bar and Mute button) - always visible */}
+            <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
+              <View className="flex-1 h-1 bg-white/30 rounded-full relative" {...panResponder.panHandlers}>
+                <View className="h-full bg-[#FEA74E] rounded-full" style={{ width: `${progress}%` }} />
+                <View
+                  style={{
+                    position: "absolute",
+                    left: `${progress}%`,
+                    transform: [{ translateX: -6 }],
+                    top: -5,
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: "#FFFFFF",
+                    borderWidth: 1,
+                    borderColor: "#FEA74E",
+                  }}
+                />
               </View>
-            )}
+              <TouchableOpacity onPress={() => toggleMute(modalKey)}>
+                <Ionicons
+                  name={mutedVideos[modalKey] ? "volume-mute" : "volume-high"}
+                  size={20}
+                  color="#FEA74E"
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         </TouchableWithoutFeedback>
         {/* Footer */}
@@ -683,52 +939,252 @@ export default function AllContent() {
     );
   };
 
+  // 🎵 Render music (audio) card with thumbnail and interactions
+  const renderMusicCard = (audio: MediaItem, index: number) => {
+    const modalKey = `music-${audio._id || index}`;
+    const key = getContentKey(audio);
+    const stats = contentStats[key] || {};
+    const thumbnailSource = audio?.imageUrl
+      ? (typeof audio.imageUrl === "string" ? { uri: audio.imageUrl } : (audio.imageUrl as any))
+      : { uri: audio.fileUrl };
+    const isPlaying = playingAudioId === modalKey;
+    const currentProgress = audioProgressMap[modalKey] || 0;
+
+    return (
+      <View 
+        key={modalKey} 
+        className="flex flex-col mb-10"
+        onLayout={(e) => {
+          const { y, height } = e.nativeEvent.layout;
+          contentLayoutsRef.current[modalKey] = { y, height, type: 'music', uri: audio.fileUrl };
+        }}
+      >
+        <TouchableWithoutFeedback onPress={() => { /* tap does nothing; use buttons */ }}>
+          <View className="w-full h-[400px] overflow-hidden relative">
+            <Image
+              source={thumbnailSource as any}
+              style={{ width: "100%", height: "100%", position: "absolute" }}
+              resizeMode="cover"
+            />
+
+            {/* Center Play/Pause button */}
+            <View className="absolute inset-0 justify-center items-center">
+              <TouchableOpacity
+                onPress={() => playAudio(audio.fileUrl, modalKey)}
+                className="bg-white/70 p-3 rounded-full"
+                activeOpacity={0.9}
+              >
+                <Ionicons name={isPlaying ? "pause" : "play"} size={32} color="#FEA74E" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Right side actions */}
+            <View className="flex-col absolute mt-[170px] right-4">
+              <TouchableOpacity onPress={() => handleFavorite(key, audio)} className="flex-col justify-center items-center">
+                <MaterialIcons
+                  name={userFavorites[key] ? "favorite" : "favorite-border"}
+                  size={30}
+                  color={userFavorites[key] ? "#D22A2A" : "#FFFFFF"}
+                />
+                <Text className="text-[10px] text-white font-rubik-semibold">
+                  {globalFavoriteCounts[key] || 0}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-col justify-center items-center mt-6">
+                <Ionicons name="chatbubble-sharp" size={30} color="white" />
+                <Text className="text-[10px] text-white font-rubik-semibold">
+                  {stats.comment === 1 ? (audio.comment ?? 0) + 1 : audio.comment ?? 0}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleSave(key, audio)} className="flex-col justify-center items-center mt-6">
+                <MaterialIcons
+                  name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
+                  size={30}
+                  color={stats.saved === 1 ? "#FEA74E" : "#FFFFFF"}
+                />
+                <Text className="text-[10px] text-white font-rubik-semibold">
+                  {stats.saved === 1 ? (audio.saved ?? 0) + 1 : audio.saved ?? 0}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Bottom Controls: progress and mute, styled similar to video */}
+            <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
+              <TouchableOpacity onPress={() => playAudio(audio.fileUrl, modalKey)}>
+                <Ionicons 
+                  name={isPlaying ? "pause" : "play"} 
+                  size={24} 
+                  color="#FEA74E" 
+                />
+              </TouchableOpacity>
+              <View className="flex-1 h-1 bg-white/30 rounded-full relative">
+                <View className="h-full bg-[#FEA74E] rounded-full" style={{ width: `${currentProgress * 100}%` }} />
+                <View
+                  style={{
+                    position: "absolute",
+                    left: `${currentProgress * 100}%`,
+                    transform: [{ translateX: -6 }],
+                    top: -5,
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: "#FFFFFF",
+                    borderWidth: 1,
+                    borderColor: "#FEA74E",
+                  }}
+                />
+              </View>
+              <TouchableOpacity onPress={async () => {
+                const currentMuted = audioMuteMap[modalKey] ?? false;
+                const newMuted = !currentMuted;
+                setAudioMuteMap((prev) => ({ ...prev, [modalKey]: newMuted }));
+                const snd = soundMap[modalKey];
+                if (snd) {
+                  try { await snd.setIsMutedAsync(newMuted); } catch {}
+                }
+              }}>
+                <Ionicons
+                  name={(audioMuteMap[modalKey] ?? false) ? "volume-mute" : "volume-high"}
+                  size={20}
+                  color="#FEA74E"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Title overlay above controls */}
+            <View className="absolute bottom-9 left-3 right-3 px-4 py-2 rounded-md">
+              <Text className="text-white font-semibold text-[14px]" numberOfLines={2}>
+                {audio.title}
+              </Text>
+            </View>
+
+          </View>
+        </TouchableWithoutFeedback>
+        {/* Footer under the card: avatar, time and share */}
+        <View className="flex-row items-center justify-between mt-1 px-3">
+          <View className="flex flex-row items-center">
+            <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center relative ml-1 mt-2">
+              <Image
+                source={
+                  typeof audio.speakerAvatar === "string" && (audio.speakerAvatar as string).startsWith("http")
+                    ? { uri: (audio.speakerAvatar as string).trim() }
+                    : (audio.speakerAvatar as any) || require("../../assets/images/Avatar-1.png")
+                }
+                style={{ width: 30, height: 30, borderRadius: 999 }}
+                resizeMode="cover"
+              />
+            </View>
+            <View className="ml-3">
+              <View className="flex-row items-center">
+                <Text className="ml-1 text-[13px] font-rubik-semibold text-[#344054] mt-1">
+                  {getDisplayName(audio.speaker || "", audio.uploadedBy)}
+                </Text>
+                <View className="flex flex-row mt-2 ml-2">
+                  <Ionicons name="time-outline" size={14} color="#9CA3AF" />
+                  <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
+                    {getTimeAgo(audio.createdAt)}
+                  </Text>
+                </View>
+              </View>
+              <View className="flex-row mt-2">
+                <View className="flex-row items-center">
+                  <AntDesign name="eyeo" size={24} color="#98A2B3" />
+                  <Text className="text-[10px] text-gray-500 ml-1 mt-1 font-rubik">
+                    {stats.views ?? audio.views ?? 0}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => handleShare(key, audio)} className="flex-row items-center ml-4">
+                  <Feather name="send" size={24} color="#98A2B3" />
+                  <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
+                    {stats.sheared ?? audio.sheared ?? 0}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => setModalVisible(modalVisible === modalKey ? null : modalKey)}
+            className="mr-2"
+          >
+            <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Vertical pop modal, same behavior as video cards */}
+        {modalVisible === modalKey && (
+          <>
+            <TouchableWithoutFeedback onPress={() => setModalVisible(null)}>
+              <View className="absolute inset-0 z-40" />
+            </TouchableWithoutFeedback>
+            <View className="absolute bottom-24 right-16 bg-white shadow-md rounded-lg p-3 z-50 w-[200px] h-[180]">
+              <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
+                <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
+                <Ionicons name="eye-outline" size={22} color="#1D2939" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleShare(key, audio)}
+                className="py-2 border-b border-gray-200 flex-row items-center justify-between"
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">Share</Text>
+                <Feather name="send" size={22} color="#1D2939" />
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-row items-center justify-between mt-6" onPress={() => handleSave(key, audio)}>
+                <Text className="text-[#1D2939] font-rubik ml-2">{stats.saved === 1 ? "Remove from Library" : "Save to Library"}</Text>
+                <MaterialIcons
+                  name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
+                  size={22}
+                  color="#1D2939"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2">
+                <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
+                <Ionicons name="download-outline" size={24} color="#090E24" />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </View>
+    );
+  };
+
   return (
-    <ScrollView className="flex-1">
+    <ScrollView 
+      ref={scrollViewRef}
+      className="flex-1"
+      onScroll={handleScroll}
+      onScrollEndDrag={() => {
+        // Recompute at drag end to ensure correct active video when user stops scrolling
+        recomputeVisibilityFromLayouts();
+      }}
+      onMomentumScrollEnd={() => {
+        // Recompute at momentum end for fast flicks
+        recomputeVisibilityFromLayouts();
+      }}
+      scrollEventThrottle={16}
+      showsVerticalScrollIndicator={true}
+    >
+      {/* 🆕 Recent Section */}
+      {mostRecentItem && (
+        <View>
+          <Text className="text-[16px] font-rubik-semibold px-4 mt-5 mb-3">Recent</Text>
+          {mostRecentItem.contentType === 'videos'
+            ? renderVideoCard(mostRecentItem as any, 0)
+            : renderMusicCard(mostRecentItem as any, 0)}
+        </View>
+      )}
       {/* 🔥 Videos Section with Full Layout */}
-      {allVideos.length > 0 && (
+      {videosExcludingRecent.length > 0 && (
         <>
-          <Text className="text-[18px] font-bold px-4 mt-5 mb-3">🎥 Videos</Text>
-          {allVideos.map((video, index) => renderVideoCard(video, index))}
+          {/* <Text className="text-[18px] font-bold px-4 mt-5 mb-3">🎥 Videos</Text> */}
+          {videosExcludingRecent.map((video, index) => renderVideoCard(video, index))}
         </>
       )}
 
-      {/* 📚 Other content */}
-      {otherContent.length > 0 && (
+      {/* 🎵 Music Section with thumbnails */}
+      {musicExcludingRecent.length > 0 && (
         <>
-          <Text className="text-[18px] font-bold px-4 mt-5 mb-3">📁 Other Content</Text>
-          {otherContent.map((item) => (
-            <View key={item._id || Math.random().toString(36).substring(2)} className="mb-6 px-4">
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: "/reels/Reelsviewscroll",
-                    params: {
-                      title: item.title,
-                      speaker: item.description || "Unknown",
-                      timeAgo: getTimeAgo(item.createdAt),
-                      imageUrl: item.fileUrl,
-                      speakerAvatar: typeof item.speakerAvatar === "string"
-                        ? item.speakerAvatar
-                        : item.speakerAvatar || require("../../assets/images/Avatar-1.png"),
-                    },
-                  })
-                }
-              >
-                <Image
-                  source={
-                    typeof item.imageUrl === "string"
-                      ? { uri: item.imageUrl }
-                      : item.imageUrl || { uri: item.fileUrl }
-                  }
-                  className="w-full h-48 rounded-xl mb-2"
-                  resizeMode="cover"
-                />
-                <Text className="text-lg font-semibold">{item.title}</Text>
-                <Text className="text-sm text-gray-500">{item.description || "No description"}</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+          {/* <Text className="text-[18px] font-bold px-4 mt-5 mb-3">🎵 Music</Text> */}
+          {musicExcludingRecent.map((audio, index) => renderMusicCard(audio, index))}
         </>
       )}
 

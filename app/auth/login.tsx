@@ -4,12 +4,12 @@ import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import AuthHeader from "../components/AuthHeader";
 import { API_BASE_URL } from "../utils/api";
@@ -36,7 +36,7 @@ export default function LoginScreen() {
     if (!emailAddress.trim()) {
       setEmailError("Email is required");
       isValid = false;
-    } else if (!validateEmail(emailAddress)) {
+    } else if (!validateEmail(emailAddress.trim().toLowerCase())) {
       setEmailError("Invalid email format");
       isValid = false;
     }
@@ -56,27 +56,49 @@ export default function LoginScreen() {
     // `/auth/login`
 
     try {
+      // Normalize inputs to avoid subtle auth failures due to whitespace/case
+      const normalizedEmail = emailAddress.trim().toLowerCase();
+      const normalizedPassword = password.trim();
+
+      console.log("🔍 LOGIN DEBUG:", {
+        API_BASE_URL,
+        url: `${API_BASE_URL}/api/auth/login`,
+        emailLength: normalizedEmail.length,
+      });
+
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: emailAddress,
-          password: password,
+          email: normalizedEmail,
+          password: normalizedPassword,
         }),
       });
 
-      const data = await response.json();
+      let data: any = null;
+      const rawText = await response.text();
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch (e) {
+        console.warn("⚠️ Non-JSON login response:", rawText);
+        data = { message: rawText };
+      }
 
       if (!response.ok) {
-        Alert.alert("Login Failed", data.message || "Something went wrong");
+        const message =
+          data?.message ||
+          (response.status === 400 ? "Invalid email or password" : `Request failed (${response.status})`);
+        Alert.alert("Login Failed", message);
         return;
       }
 
       // ✅ Save token and user info to AsyncStorage
       if (data.token) {
         await AsyncStorage.setItem("token", data.token);
+        // Store under both keys used in different parts of the app
+        await AsyncStorage.setItem("userToken", data.token);
       }
 
       if (data.user) {

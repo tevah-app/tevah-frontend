@@ -125,9 +125,11 @@ export default function ProfileSetUp() {
 
   return (
     <View className="flex-1 bg-[#FCFCFD]">
-       <View className="px-4 mt-6">
+
+<View className="px-4 mt-6">
         <AuthHeader title="Profile Setup" />
       </View>
+     
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ flexGrow: 1 }}

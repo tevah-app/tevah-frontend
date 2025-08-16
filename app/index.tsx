@@ -323,7 +323,7 @@ import { useAuth, useOAuth, useUser } from '@clerk/clerk-expo'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { router } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
     ActivityIndicator,
     Dimensions,
@@ -337,6 +337,7 @@ import {
     View,
 } from 'react-native'
 import '../global.css'
+import AnimatedLogoIntro from './components/AnimatedLogoIntro'
 import { API_BASE_URL } from './utils/api'
 
 const { width } = Dimensions.get('window')
@@ -377,6 +378,7 @@ export default function Welcome() {
   const currentIndexRef = useRef(0)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [showIntro, setShowIntro] = useState(true)
 
   const { isSignedIn, isLoaded: authLoaded, signOut, getToken } = useAuth()
   const { isLoaded: userLoaded, user } = useUser()
@@ -385,6 +387,7 @@ export default function Welcome() {
   const { startOAuthFlow: startAppleAuth } = useOAuth({ strategy: 'oauth_apple' })
 
   useEffect(() => {
+    if (showIntro) return
     const interval = setInterval(() => {
       let nextIndex = currentIndexRef.current + 1
       if (nextIndex >= slides.length) nextIndex = 0
@@ -392,9 +395,8 @@ export default function Welcome() {
       currentIndexRef.current = nextIndex
       setCurrentIndex(nextIndex)
     }, 3500)
-
     return () => clearInterval(interval)
-  }, [])
+  }, [showIntro])
 
   const onMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width)
@@ -430,6 +432,17 @@ export default function Welcome() {
       </View>
     </View>
   )
+
+  const handleIntroFinished = useCallback(() => setShowIntro(false), [])
+
+  if (showIntro) {
+    return (
+      <AnimatedLogoIntro
+        // You can tweak timings by adjusting letterStaggerMs or scale
+        onFinished={handleIntroFinished}
+      />
+    )
+  }
 
   // const handleSignIn = async (
   //   authFn: () => Promise<any>,
@@ -728,7 +741,7 @@ export default function Welcome() {
           <Text className="text-white font-semibold">Get Started with Email</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push('/auth/login')} className="mt-9">
+        <Pressable onPress={() => router.push('/downloads/DownloadsScreen')} className="mt-9">
           <Text className="font-rubik-bold text-[#344054]">Sign In</Text>
         </Pressable>
 

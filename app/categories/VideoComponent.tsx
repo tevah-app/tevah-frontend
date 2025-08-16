@@ -6,11 +6,14 @@ import {
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio, ResizeMode, Video } from "expo-av";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Dimensions,
   Image,
   ImageSourcePropType,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   PanResponder,
   ScrollView,
   Share,
@@ -20,8 +23,10 @@ import {
   View,
 } from "react-native";
 import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
+import { useInteractionStore } from "../store/useInteractionStore";
 import { useLibraryStore } from "../store/useLibraryStore";
 import { useMediaStore } from "../store/useUploadStore";
+import contentInteractionAPI from "../utils/contentInteractionAPI";
 import {
   getFavoriteState,
   getPersistedStats,
@@ -30,8 +35,9 @@ import {
   persistViewed,
   toggleFavorite,
 } from "../utils/persistentStorage";
-import { testFavoriteSystem } from "../utils/testFavoriteSystem";
-import { testPersistenceBehavior } from "../utils/testPersistence";
+// import { testFavoriteSystem } from "../utils/testFavoriteSystem";
+// import { testPersistenceBehavior } from "../utils/testPersistence";
+import useVideoViewport from "../hooks/useVideoViewport";
 import { getDisplayName } from "../utils/userValidation";
 
 interface VideoCard {
@@ -68,12 +74,20 @@ const videosB: VideoCard[] = [];
 const recommendedItems: RecommendedItem[] = [];
 
 export default function VideoComponent() {
+  const router = useRouter();
   const [videoVolume, setVideoVolume] = useState<number>(1.0); // 🔊 Add volume control
   const getVideoKey = (fileUrl: string): string => `video-${fileUrl}`;
+  
+  // 📱 Viewport detection for auto-play
+  const { calculateVideoVisibility } = useVideoViewport();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
-  const [rsModalIndex, setRsModalIndex] = useState<number | null>(null);
+  // Removed legacy rsModalIndex; using specific indices per section instead
+  // Separate modal indices for different mini-card sections to avoid conflicts
+  const [trendingModalIndex, setTrendingModalIndex] = useState<number | null>(null);
+  const [recommendedModalIndex, setRecommendedModalIndex] = useState<number | null>(null);
   const [showOverlayMini, setShowOverlayMini] = useState<Record<string, boolean>>({});
 
   const [miniCardViews, setMiniCardViews] = useState<Record<string, number>>({});
@@ -90,7 +104,12 @@ export default function VideoComponent() {
   const [globalFavoriteCounts, setGlobalFavoriteCounts] = useState<Record<string, number>>({});
 
   const videoRefs = useRef<Record<string, any>>({});
+  const videoLayoutsRef = useRef<Record<string, { y: number; height: number }>>({});
+  const lastScrollYRef = useRef<number>(0);
   const mediaStore = useMediaStore();
+  // ✅ Global interaction stats (views, likes, shares, comments)
+  const contentStats = useInteractionStore((s) => s.contentStats);
+  const loadBatchContentStats = useInteractionStore((s) => s.loadBatchContentStats);
   
   // ✅ Use global video store for cross-component video management
   const globalVideoStore = useGlobalVideoStore();
@@ -104,15 +123,37 @@ export default function VideoComponent() {
   const progresses = globalVideoStore.progresses;
   const showOverlay = globalVideoStore.showOverlay;
   const hasCompleted = globalVideoStore.hasCompleted;
+  const isAutoPlayEnabled = globalVideoStore.isAutoPlayEnabled;
+  const handleVideoVisibilityChange = globalVideoStore.handleVideoVisibilityChange;
   
   // 🔧 Fix infinite loop: Memoize uploadedVideos to prevent recreation on every render
+  // Accept both `type` and `contentType` from media items
   const uploadedVideos = useMemo(() => 
-    mediaStore.mediaList.filter((item) => item.type?.toLowerCase() === "videos"), 
+    mediaStore.mediaList.filter((item: any) => {
+      const t = (item?.type || item?.contentType || '').toString().toLowerCase();
+      return t === 'videos';
+    }), 
     [mediaStore.mediaList]
   );
 
+  // Load global aggregated stats for all uploaded videos (across all users)
+  useEffect(() => {
+    const ids = uploadedVideos.map((v: any) => v._id).filter(Boolean);
+    if (ids.length > 0) {
+      loadBatchContentStats(ids as string[]);
+    }
+  }, [uploadedVideos.length, loadBatchContentStats]);
+
   const toggleMute = (key: string) => {
     globalVideoStore.toggleVideoMute(key);
+  };
+
+  // Close all open menus/popovers across the component
+  const closeAllMenus = () => {
+    setModalVisible(null);
+    setPvModalIndex(null);
+    setTrendingModalIndex(null);
+    setRecommendedModalIndex(null);
   };
 
   useEffect(() => {
@@ -154,15 +195,6 @@ export default function VideoComponent() {
       setGlobalFavoriteCounts(favoriteCounts);
       
       console.log(`✅ VideoComponent: Loaded ${uploadedVideos.length} videos and stats for ${Object.keys(stats).length} items`);
-      
-      // 🧪 Test persistence behavior for debugging
-      if (__DEV__) {
-        setTimeout(() => {
-          testPersistenceBehavior();
-          // Test the new favorite system
-          testFavoriteSystem();
-        }, 1000);
-      }
     };
 
     loadPersistedData();
@@ -400,50 +432,104 @@ export default function VideoComponent() {
   const handleSave = async (key: string, video: VideoCard) => {
     console.log("🔄 Save button clicked for:", video.title);
     
-    const isSaved = videoStats[key]?.saved === 1;
-    
-    if (!isSaved) {
-      // Save to library
-      const libraryItem = {
-        id: key,
-        contentType: "videos",
-        fileUrl: video.fileUrl,
-        title: video.title,
-        speaker: video.speaker,
-        uploadedBy: video.uploadedBy,
-        createdAt: video.createdAt || new Date().toISOString(),
-        speakerAvatar: video.speakerAvatar,
-        views: videoStats[key]?.views || video.views || 0,
-        sheared: videoStats[key]?.sheared || video.sheared || 0,
-        favorite: videoStats[key]?.favorite || video.favorite || 0,
-        comment: videoStats[key]?.comment || video.comment || 0,
-        saved: 1,
-        thumbnailUrl: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
-        originalKey: key
-      };
+    try {
+      // Check current user-specific save state from library store
+      const isCurrentlyUserSaved = libraryStore.isItemSaved(key);
+      console.log(`📚 Current user save state for ${video.title}: ${isCurrentlyUserSaved}`);
       
-      await libraryStore.addToLibrary(libraryItem);
-    } else {
-      // Remove from library
-      await libraryStore.removeFromLibrary(key);
+      // Toggle save state - user can only save/unsave once
+      if (!isCurrentlyUserSaved) {
+        // User wants to save - add to local library and increment global count
+        const libraryItem = {
+          id: key,
+          contentType: "videos",
+          fileUrl: video.fileUrl,
+          title: video.title,
+          speaker: video.speaker,
+          uploadedBy: video.uploadedBy,
+          createdAt: video.createdAt || new Date().toISOString(),
+          speakerAvatar: video.speakerAvatar,
+          views: videoStats[key]?.views || (video as any).viewCount || 0,
+          sheared: videoStats[key]?.sheared || video.sheared || 0,
+          favorite: videoStats[key]?.favorite || video.favorite || 0,
+          comment: videoStats[key]?.comment || video.comment || 0,
+          saved: 1,
+          thumbnailUrl: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
+          originalKey: key
+        };
+        
+        await libraryStore.addToLibrary(libraryItem);
+        console.log(`✅ Added to user's library: ${video.title}`);
+        
+        // Update local stats with incremented save count
+        setVideoStats((prev) => {
+          const updatedStats = {
+            ...prev,
+            [key]: {
+              ...prev[key],
+              totalSaves: ((prev[key] as any)?.totalSaves || video.saved || 0) + 1,
+              userSaved: true,
+              saved: 1, // For compatibility with existing UI
+              views: prev[key]?.views || (video as any).viewCount || 0,
+              sheared: prev[key]?.sheared || video.sheared || 0,
+              favorite: prev[key]?.favorite || video.favorite || 0,
+              comment: prev[key]?.comment || video.comment || 0,
+            },
+          };
+          persistStats(updatedStats);
+          return updatedStats;
+        });
+        
+      } else {
+        // User wants to unsave - remove from local library and decrement global count
+        await libraryStore.removeFromLibrary(key);
+        console.log(`🗑️ Removed from user's library: ${video.title}`);
+        
+        // Update local stats with decremented save count
+        setVideoStats((prev) => {
+          const updatedStats = {
+            ...prev,
+            [key]: {
+              ...prev[key],
+              totalSaves: Math.max(((prev[key] as any)?.totalSaves || video.saved || 0) - 1, 0),
+              userSaved: false,
+              saved: 0, // For compatibility with existing UI
+              views: prev[key]?.views || (video as any).viewCount || 0,
+              sheared: prev[key]?.sheared || video.sheared || 0,
+              favorite: prev[key]?.favorite || video.favorite || 0,
+              comment: prev[key]?.comment || video.comment || 0,
+            },
+          };
+          persistStats(updatedStats);
+          return updatedStats;
+        });
+      }
+      
+      // Try to sync with backend, but don't block the UI if it fails
+      try {
+        const result = await contentInteractionAPI.toggleSave(key, "videos");
+        console.log(`🔄 Backend sync result:`, result);
+        
+        // Update with backend response if available (but keep local state as source of truth)
+        setVideoStats((prev) => {
+          const updatedStats = {
+            ...prev,
+            [key]: {
+              ...prev[key],
+              totalSaves: result.totalSaves
+            }
+          };
+          persistStats(updatedStats);
+          return updatedStats;
+        });
+      } catch (apiError) {
+        console.warn(`⚠️ Backend sync failed, but local action succeeded:`, apiError);
+        // Local state already updated above, no need for additional action
+      }
+      
+    } catch (error) {
+      console.error(`❌ Save operation failed for ${video.title}:`, error);
     }
-    
-    setVideoStats((prev) => {
-      const updatedStats = {
-        ...prev,
-        [key]: {
-          ...prev[key],
-          saved: isSaved ? 0 : 1,
-          views: prev[key]?.views || video.views || 0,
-          sheared: prev[key]?.sheared || video.sheared || 0,
-          favorite: prev[key]?.favorite || video.favorite || 0,
-          comment: prev[key]?.comment || video.comment || 0,
-        },
-      };
-      persistStats(updatedStats);
-      console.log(`✅ Save ${isSaved ? 'removed from' : 'added to'} library:`, video.title);
-      return updatedStats;
-    });
     
     // ✅ Close modal after save action
     setModalVisible(null);
@@ -485,6 +571,43 @@ export default function VideoComponent() {
     });
   };
 
+  // 📱 During scroll: only record position; autoplay triggers on scroll end for smoother UX
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset } = event.nativeEvent;
+    lastScrollYRef.current = contentOffset.y;
+  }, []);
+
+  const recomputeVisibilityFromLayouts = useCallback(() => {
+    if (!isAutoPlayEnabled) return;
+    const scrollY = lastScrollYRef.current;
+    const screenHeight = Dimensions.get('window').height;
+    const viewportTop = scrollY;
+    const viewportBottom = scrollY + screenHeight;
+
+    let mostVisibleKey: string | null = null;
+    let maxRatio = 0;
+    const MIN_VISIBILITY_THRESHOLD = 0.5;
+
+    uploadedVideos.forEach((v) => {
+      const key = getVideoKey(v.fileUrl);
+      const layout = videoLayoutsRef.current[key];
+      if (!layout) return;
+      const itemTop = layout.y;
+      const itemBottom = layout.y + layout.height;
+      const intersectionTop = Math.max(viewportTop, itemTop);
+      const intersectionBottom = Math.min(viewportBottom, itemBottom);
+      const visibleHeight = Math.max(0, intersectionBottom - intersectionTop);
+      const ratio = visibleHeight / Math.max(1, layout.height);
+      if (ratio >= MIN_VISIBILITY_THRESHOLD && ratio > maxRatio) {
+        maxRatio = ratio;
+        mostVisibleKey = key;
+      }
+    });
+
+    // Auto-play globally disabled; do not trigger visibility-based play
+    // handleVideoVisibilityChange(mostVisibleKey);
+  }, [isAutoPlayEnabled, uploadedVideos, handleVideoVisibilityChange]);
+
   const handleVideoTap = (key: string, video?: VideoCard) => {
     const isCurrentlyPlaying = playingVideos[key] ?? false;
     const wasCompleted = hasCompleted[key] ?? false;
@@ -510,16 +633,28 @@ export default function VideoComponent() {
 
   // 🔧 Fix infinite loop: Memoize allIndexedVideos calculation
   const allIndexedVideos = useMemo(() => 
-    uploadedVideos.map((video, i) => {
+    uploadedVideos.map((video: any) => {
       const key = getVideoKey(video.fileUrl);
 
       const stats = videoStats[key] || {};
-      const views = Math.max(stats.views ?? 0, video.viewCount ?? 0);
-      const shares = Math.max(stats.sheared ?? 0, video.sheared ?? 0);
-      const favorites = Math.max(stats.favorite ?? 0, video.favorite ?? 0);
-      const score = views + shares + favorites;
+      const isItemSaved = libraryStore.isItemSaved(key);
+      const contentId: string | undefined = video._id;
+      const global = contentId ? (contentStats as any)[contentId] : undefined;
+      // Prefer global, aggregated counts; fall back to local or item fields
+      const globalViews = global?.views ?? 0;
+      const globalShares = global?.shares ?? 0;
+      const globalLikes = global?.likes ?? 0;
+      const globalComments = global?.comments ?? 0;
+      const globalSaves = global?.saves ?? 0;
+      const views = Math.max(globalViews, stats.views ?? 0, video.viewCount ?? 0);
+      const shares = Math.max(globalShares, stats.sheared ?? 0, video.sheared ?? 0);
+      const favorites = Math.max(globalLikes, stats.favorite ?? 0, video.favorite ?? 0);
+      const comments = Math.max(globalComments, stats.comment ?? 0, video.comment ?? 0);
+      const saves = Math.max(globalSaves, (stats as any).totalSaves ?? stats.saved ?? 0, video.saved ?? 0);
+      const score = views + shares + favorites + comments + saves;
 
       return {
+        contentId,
         key,
         fileUrl: video.fileUrl,
         title: video.title,
@@ -527,115 +662,138 @@ export default function VideoComponent() {
         views,
         shares,
         favorites,
+        comments,
+        saves,
+        globalViews,
+        globalShares,
+        globalLikes,
+        globalComments,
+        globalSaves,
         score,
+        isItemSaved,
         imageUrl: {
           uri: video.fileUrl.replace("/upload/", "/upload/so_1/") + ".jpg",
         },
       };
-    }), [uploadedVideos, videoStats]
+    }), [uploadedVideos, videoStats, libraryStore.savedItems, contentStats]
   );
 
-  // ✅ Modern Social Media Trending Algorithm
+  // ✅ Trending score using velocity + exponential time-decay (social media pattern)
   const calculateTrendingScore = (video: any, videoData: any) => {
-    const now = new Date().getTime();
-    const createdAt = new Date(videoData.createdAt || Date.now()).getTime();
-    const ageInHours = (now - createdAt) / (1000 * 60 * 60);
-    
-    // Base engagement metrics
-    const views = video.views || 0;
-    const shares = video.shares || 0;
-    const favorites = video.favorites || 0;
-    const comments = videoStats[video.key]?.comment || 0;
-    const saves = videoStats[video.key]?.saved || 0;
-    
-    // Calculate engagement rate (weighted by action value)
-    const totalEngagement = (
-      (views * 1) +           // Base metric
-      (favorites * 3) +       // Likes are more valuable
-      (comments * 5) +        // Comments show deep engagement
-      (shares * 7) +          // Shares are high-value
-      (saves * 4)             // Saves show strong interest
-    );
-    
-    // Recency factor - newer content gets boost (decays over 168 hours/7 days)
-    const recencyFactor = Math.max(0.1, 1 - (ageInHours / 168));
-    
-    // Growth rate factor - rapid engagement gets boost
-    const growthRate = totalEngagement / Math.max(1, ageInHours);
-    
-    // Minimum threshold for trending consideration
-    const hasMinimumActivity = views >= 1 && (favorites + comments + shares + saves) >= 1;
-    
-    // Final trending score
-    const trendingScore = hasMinimumActivity 
-      ? (totalEngagement * recencyFactor) + (growthRate * 2)
-      : 0;
-    
-    return {
-      score: trendingScore,
-      engagement: totalEngagement,
-      recency: recencyFactor,
-      growth: growthRate,
-      hasMinActivity: hasMinimumActivity
-    };
+    const now = Date.now();
+    const createdAt = new Date(videoData?.createdAt || now).getTime();
+    const ageInHours = Math.max(1, (now - createdAt) / (1000 * 60 * 60));
+
+    // Prefer global aggregated counts; fall back to local
+    const views = video.globalViews ?? video.views ?? 0;
+    const shares = video.globalShares ?? video.shares ?? 0;
+    const favorites = video.globalLikes ?? video.favorites ?? 0;
+    const comments = video.globalComments ?? video.comments ?? 0;
+    const saves = video.globalSaves ?? video.saves ?? 0;
+
+    // Convert to velocity (per hour) and dampen with log/sqrt to avoid domination by large accounts
+    const viewsPerHour = views / ageInHours;
+    const likesPerHour = favorites / ageInHours;
+    const sharesPerHour = shares / ageInHours;
+    const commentsPerHour = comments / ageInHours;
+    const savesPerHour = saves / ageInHours;
+
+    // Weights reflecting impact hierarchy: shares > comments > likes > saves > views
+    const weightedVelocity =
+      1 * Math.sqrt(Math.max(0, viewsPerHour)) +
+      2 * Math.log1p(Math.max(0, savesPerHour)) +
+      3 * Math.log1p(Math.max(0, likesPerHour)) +
+      5 * Math.log1p(Math.max(0, commentsPerHour)) +
+      6 * Math.log1p(Math.max(0, sharesPerHour));
+
+    // Exponential time decay with ~24h half-life
+    const halfLifeHours = 24;
+    const decay = Math.exp(-ageInHours / halfLifeHours);
+
+    // Early traction boost for very new content with meaningful interactions
+    const earlyBoost = ageInHours < 6 && (shares + comments) >= 10 ? 1.25 : 1.0;
+
+    // Scale to a user-friendly range
+    const score = weightedVelocity * decay * earlyBoost * 300;
+
+    // Recency metric (0..1) to use as tie-breaker
+    const recency = 1 / ageInHours;
+
+    return { score, recency };
   };
 
   // 🔧 Fix infinite loop: Memoize trendingItems calculation
-  const trendingItems: RecommendedItem[] = useMemo(() => 
-    allIndexedVideos
+  const trendingItems: RecommendedItem[] = useMemo(() => {
+    const scored = allIndexedVideos
       .map(video => {
-        // Find original video data for createdAt
         const originalVideo = uploadedVideos.find(v => v.fileUrl === video.fileUrl);
-        const trendingData = calculateTrendingScore(video, originalVideo || {});
-        
+        const { score, recency } = calculateTrendingScore(video, originalVideo || {});
         return {
           ...video,
-          trendingScore: trendingData.score,
-          engagement: trendingData.engagement,
-          recency: trendingData.recency,
-          growth: trendingData.growth
-        };
+          trendingScore: score,
+          recency,
+          createdAt: originalVideo?.createdAt,
+        } as any;
       })
-      .filter(v => v.trendingScore > 0) // Only include videos with activity
-      .sort((a, b) => {
-        // Primary sort: trending score
-        if (b.trendingScore !== a.trendingScore) {
-          return b.trendingScore - a.trendingScore;
-        }
-        // Secondary sort: total engagement
-        if (b.engagement !== a.engagement) {
-          return b.engagement - a.engagement;
-        }
-        // Tertiary sort: recency
-        return b.recency - a.recency;
+      .filter(v => (v as any).trendingScore > 0);
+
+    const takeTop = (list: any[]) => list
+      .sort((a: any, b: any) => {
+        // Primary: trending score
+        if ((b.trendingScore ?? 0) !== (a.trendingScore ?? 0)) return (b.trendingScore ?? 0) - (a.trendingScore ?? 0);
+        // Secondary: total global views
+        const av = a.globalViews ?? a.views ?? 0;
+        const bv = b.globalViews ?? b.views ?? 0;
+        if (bv !== av) return bv - av;
+        // Tertiary: recency
+        return (b.recency ?? 0) - (a.recency ?? 0);
       })
-      .slice(0, 20) // Limit to top 20 trending videos
-      .map(({ fileUrl, title, subTitle, views, imageUrl, trendingScore, growth }) => {
-        // 🔥 Add trending indicators based on score ranges
-        const isHot = !!(trendingScore && trendingScore > 50);
-        const isRising = !!(growth && growth > 5);
-        
-        // Debug logging for trending calculation
-        console.log(`🔥 Trending: ${title}`, {
-          trendingScore: trendingScore?.toFixed(2),
-          growth: growth?.toFixed(2),
-          isHot,
-          isRising,
-          views
-        });
-        
+      .slice(0, 20)
+      .map(({ fileUrl, title, subTitle, imageUrl, trendingScore, globalViews, views }: any) => {
+        const scoreNum = Number(trendingScore || 0);
+        const isHot = scoreNum > 1200;
+        const isRising = scoreNum > 600 && scoreNum <= 1200;
         return {
           fileUrl,
           title,
           subTitle,
-          views,
+          views: globalViews ?? views ?? 0,
           imageUrl,
           isHot,
           isRising,
-          trendingScore
-        };
-      }), [allIndexedVideos, uploadedVideos, videoStats]
-  );
+          trendingScore: scoreNum,
+        } as RecommendedItem;
+      });
+
+    if (scored.length > 0) return takeTop(scored);
+
+    // Fallback: show most recent/most-viewed when no interactions yet
+    const fallback = allIndexedVideos
+      .map(video => {
+        const originalVideo = uploadedVideos.find(v => v.fileUrl === video.fileUrl);
+        const createdAt = new Date(originalVideo?.createdAt || Date.now()).getTime();
+        return { ...video, createdAt } as any;
+      })
+      .sort((a: any, b: any) => {
+        const bv = b.globalViews ?? b.views ?? 0;
+        const av = a.globalViews ?? a.views ?? 0;
+        if (bv !== av) return bv - av;
+        return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+      })
+      .slice(0, 20)
+      .map(({ fileUrl, title, subTitle, imageUrl, globalViews, views }: any) => ({
+        fileUrl,
+        title,
+        subTitle,
+        views: globalViews ?? views ?? 0,
+        imageUrl,
+        isHot: false,
+        isRising: false,
+        trendingScore: 0,
+      } as RecommendedItem));
+
+    return fallback;
+  }, [allIndexedVideos, uploadedVideos]);
 
   useEffect(() => {
     uploadedVideos.forEach((video) => {
@@ -658,6 +816,40 @@ export default function VideoComponent() {
     });
   }, [uploadedVideos, trendingItems, previouslyViewedState]);
 
+  // Initialize video stats from persisted data and library store
+  useEffect(() => {
+    const initializeVideoStats = async () => {
+      if (uploadedVideos && uploadedVideos.length > 0) {
+        console.log("📚 VideoComponent: Initializing video stats for", uploadedVideos.length, "videos");
+        
+        const persistedStats = await getPersistedStats();
+        const newStats: Record<string, any> = {};
+        
+        for (const video of uploadedVideos) {
+          const key = getVideoKey(video.fileUrl);
+          const isUserSaved = libraryStore.isItemSaved(key);
+          const videoStats = persistedStats[key] || {};
+          
+          newStats[key] = {
+            ...videoStats,
+            views: videoStats.views || (video as any).viewCount || 0,
+            sheared: videoStats.sheared || video.sheared || 0,
+            favorite: videoStats.favorite || video.favorite || 0,
+            comment: videoStats.comment || video.comment || 0,
+            totalSaves: videoStats.totalSaves || video.saved || 0,
+            saved: isUserSaved ? 1 : 0,
+            userSaved: isUserSaved
+          };
+        }
+        
+        setVideoStats(newStats);
+        console.log("✅ VideoComponent: Finished initializing video stats");
+      }
+    };
+
+    initializeVideoStats();
+  }, [uploadedVideos.length, libraryStore.isLoaded]);
+
   const getTimeAgo = (createdAt: string): string => {
     const now = new Date();
     const posted = new Date(createdAt);
@@ -679,8 +871,47 @@ export default function VideoComponent() {
   ) => {
     const modalKey = getVideoKey(video.fileUrl);
     const stats = videoStats[modalKey] || {};
+    const isItemSaved = libraryStore.isItemSaved(modalKey);
     const videoRef = videoRefs.current[modalKey];
     const progress = progresses[modalKey] ?? 0;
+
+    const handleVideoCardPress = () => {
+      // Prepare the full video list for TikTok-style navigation
+      const videoListForNavigation = uploadedVideos.map((v, vIndex) => ({
+        title: v.title,
+        speaker: v.speaker || v.uploadedBy || getDisplayName(v.speaker, v.uploadedBy),
+        timeAgo: v.timeAgo || getTimeAgo(v.createdAt || new Date().toISOString()),
+        views: videoStats[getVideoKey(v.fileUrl)]?.views || v.viewCount || 0,
+        sheared: videoStats[getVideoKey(v.fileUrl)]?.sheared || v.sheared || 0,
+        saved: (videoStats[getVideoKey(v.fileUrl)] as any)?.totalSaves || v.saved || 0,
+        favorite: globalFavoriteCounts[getVideoKey(v.fileUrl)] || 0,
+        fileUrl: v.fileUrl,
+        imageUrl: v.fileUrl,
+        speakerAvatar: typeof v.speakerAvatar === "string" 
+          ? v.speakerAvatar 
+          : require("../../assets/images/Avatar-1.png").toString(),
+      }));
+
+      router.push({
+        pathname: "/reels/Reelsviewscroll",
+        params: {
+          title: video.title,
+          speaker: video.speaker || video.uploadedBy || getDisplayName(video.speaker, video.uploadedBy),
+          timeAgo: video.timeAgo || getTimeAgo(video.createdAt || new Date().toISOString()),
+          views: String(stats.views || video.views || 0),
+          sheared: String(stats.sheared || video.sheared || 0),
+          saved: String((videoStats[modalKey] as any)?.totalSaves || video.saved || 0),
+          favorite: String(globalFavoriteCounts[modalKey] || 0),
+          imageUrl: video.fileUrl,
+          speakerAvatar: typeof video.speakerAvatar === "string" 
+            ? video.speakerAvatar 
+            : require("../../assets/images/Avatar-1.png").toString(),
+          category: "videos",
+          videoList: JSON.stringify(videoListForNavigation),
+          currentIndex: String(index),
+        },
+      });
+    };
 
     const panResponder = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -703,8 +934,11 @@ export default function VideoComponent() {
 
     return (
       <View key={modalKey} className="flex flex-col mb-10">
-        <TouchableWithoutFeedback onPress={() => handleVideoTap(modalKey, video)}>
-          <View className="w-full h-[400px] overflow-hidden relative">
+        <TouchableWithoutFeedback onPress={handleVideoCardPress}>
+          <View className="w-full h-[400px] overflow-hidden relative" onLayout={(e) => {
+            const { y, height } = e.nativeEvent.layout;
+            videoLayoutsRef.current[modalKey] = { y, height };
+          }}>
             <Video
               ref={(ref) => {
                 if (ref) videoRefs.current[modalKey] = ref;
@@ -731,7 +965,17 @@ export default function VideoComponent() {
                 }
               }}
             />
-            <View className="flex-col absolute mt-[170px] right-4">
+            {/* 📱 Auto-play indicator when this card is the active auto-playing video */}
+            {playingVideos[modalKey] && isAutoPlayEnabled && (globalVideoStore.currentlyVisibleVideo === modalKey) && (
+              <View className="absolute top-4 left-4">
+                <View className="bg-black/50 px-2 py-1 rounded-full flex-row items-center">
+                  <View className="w-2 h-2 bg-red-500 rounded-full mr-2" />
+                  <Text className="text-white text-xs font-rubik">Auto-playing</Text>
+                </View>
+              </View>
+            )}
+            
+            <View className="flex-col absolute mt-[170px] right-4" style={{ zIndex: 20 }}>
               <TouchableOpacity onPress={() => handleFavorite(modalKey, video)} className="flex-col justify-center items-center">
                 <MaterialIcons
                   name={userFavorites[modalKey] ? "favorite" : "favorite-border"}
@@ -750,64 +994,75 @@ export default function VideoComponent() {
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleSave(modalKey, video)} className="flex-col justify-center items-center mt-6">
                 <MaterialIcons
-                  name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
+                  name={isItemSaved ? "bookmark" : "bookmark-border"}
                   size={30}
-                  color={stats.saved === 1 ? "#FEA74E" : "#FFFFFF"}
+                  color={isItemSaved ? "#FEA74E" : "#FFFFFF"}
                 />
                 <Text className="text-[10px] text-white font-rubik-semibold">
-                  {stats.saved === 1 ? (video.saved ?? 0) + 1 : video.saved ?? 0}
+                  {(videoStats[modalKey] as any)?.totalSaves || video.saved || 0}
                 </Text>
               </TouchableOpacity>
             </View>
-            {!playingVideos[modalKey] && showOverlay[modalKey] && (
+            {/* Video title - show when paused */}
+            {!playingVideos[modalKey] && (
               <View className="absolute bottom-9 left-3 right-3 px-4 py-2 rounded-md">
                 <Text className="text-white font-rubik-semibold text-[14px]" numberOfLines={2}>
                   {video.title}
                 </Text>
               </View>
             )}
-            {!playingVideos[modalKey] && showOverlay[modalKey] && (
-              playType === "progress" ? (
-                <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
-                  <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
-                    <Ionicons name="play" size={24} color="#FEA74E" />
-                  </TouchableOpacity>
-                  <View className="flex-1 h-1 bg-white/30 rounded-full relative" {...panResponder.panHandlers}>
-                    <View className="h-full bg-[#FEA74E] rounded-full" style={{ width: `${progress}%` }} />
-                    <View
-                      style={{
-                        position: "absolute",
-                        left: `${progress}%`,
-                        transform: [{ translateX: -6 }],
-                        top: -5,
-                        width: 12,
-                        height: 12,
-                        borderRadius: 6,
-                        backgroundColor: "#FFFFFF",
-                        borderWidth: 1,
-                        borderColor: "#FEA74E",
-                      }}
-                    />
-                  </View>
-                  <TouchableOpacity onPress={() => toggleMute(modalKey)}>
-                    <Ionicons
-                      name={mutedVideos[modalKey] ? "volume-mute" : "volume-high"}
-                      size={20}
-                      color="#FEA74E"
-                    />
-                  </TouchableOpacity>
+            
+            {/* Controls - always show but change based on playing state */}
+            {playType === "progress" ? (
+              <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
+                <TouchableOpacity onPress={() => togglePlay(modalKey, video)}>
+                  <Ionicons 
+                    name={playingVideos[modalKey] ? "pause" : "play"} 
+                    size={24} 
+                    color="#FEA74E" 
+                  />
+                </TouchableOpacity>
+                <View className="flex-1 h-1 bg-white/30 rounded-full relative" {...panResponder.panHandlers}>
+                  <View className="h-full bg-[#FEA74E] rounded-full" style={{ width: `${progress}%` }} />
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: `${progress}%`,
+                      transform: [{ translateX: -6 }],
+                      top: -5,
+                      width: 12,
+                      height: 12,
+                      borderRadius: 6,
+                      backgroundColor: "#FFFFFF",
+                      borderWidth: 1,
+                      borderColor: "#FEA74E",
+                    }}
+                  />
                 </View>
-              ) : (
+                <TouchableOpacity onPress={() => toggleMute(modalKey)}>
+                  <Ionicons
+                    name={mutedVideos[modalKey] ? "volume-mute" : "volume-high"}
+                    size={20}
+                    color="#FEA74E"
+                  />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              // Center play/pause button inside a non-blocking overlay so side icons stay clickable
+              <View pointerEvents="box-none" className="absolute inset-0 justify-center items-center">
                 <TouchableOpacity
                   onPress={() => togglePlay(modalKey, video)}
-                  className="absolute inset-0 justify-center items-center"
                   activeOpacity={0.9}
                 >
-                  <View className="bg-white/70 p-2 rounded-full">
-                    <Ionicons name="play" size={28} color="#FEA74E" />
+                  <View className={`${playingVideos[modalKey] ? 'bg-black/30' : 'bg-white/70'} p-3 rounded-full`}>
+                    <Ionicons 
+                      name={playingVideos[modalKey] ? "pause" : "play"} 
+                      size={32} 
+                      color={playingVideos[modalKey] ? "#FFFFFF" : "#FEA74E"} 
+                    />
                   </View>
                 </TouchableOpacity>
-              )
+              </View>
             )}
 
           </View>
@@ -866,7 +1121,7 @@ export default function VideoComponent() {
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => setModalVisible(modalVisible === modalKey ? null : modalKey)}
+            onPress={() => { closeAllMenus(); setModalVisible(modalVisible === modalKey ? null : modalKey); }}
             className="mr-2"
           >
             <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
@@ -876,12 +1131,12 @@ export default function VideoComponent() {
         {/* ✅ Invisible overlay that covers ENTIRE component for touch-outside-to-close */}
         {modalVisible === modalKey && (
           <>
-            <TouchableWithoutFeedback onPress={() => setModalVisible(null)}>
+            <TouchableWithoutFeedback onPress={closeAllMenus}>
               <View className="absolute inset-0 z-40" />
             </TouchableWithoutFeedback>
             
             {/* ✅ Modal content positioned over the video area */}
-            <View className="absolute bottom-24 right-16 bg-white shadow-md rounded-lg p-3 z-50 w-[170px] h-[140]">
+            <View className="absolute bottom-24 right-16 bg-white shadow-md rounded-lg p-3 z-50 w-[200px] h-[180]">
               <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
                 <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
                 <Ionicons name="eye-outline" size={22} color="#1D2939" />
@@ -894,12 +1149,16 @@ export default function VideoComponent() {
                 <Feather name="send" size={22} color="#1D2939" />
               </TouchableOpacity>
               <TouchableOpacity className="flex-row items-center justify-between mt-6" onPress={() => handleSave(modalKey, video)}>
-                <Text className="text-[#1D2939] font-rubik ml-2">Save to Library</Text>
+                <Text className="text-[#1D2939] font-rubik ml-2">{isItemSaved ? "Remove from Library" : "Save to Library"}</Text>
                 <MaterialIcons
-                  name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
+                  name={isItemSaved ? "bookmark" : "bookmark-border"}
                   size={22}
-                  color={stats.saved === 1 ? "#1D2939" : "#1D2939"}
+                  color="#1D2939"
                 />
+              </TouchableOpacity>
+              <TouchableOpacity className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2">
+                <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
+                <Ionicons name="download-outline" size={24} color="#090E24" />
               </TouchableOpacity>
             </View>
           </>
@@ -947,6 +1206,40 @@ export default function VideoComponent() {
             );
           };
 
+          const handleMiniCardPress = () => {
+            // Prepare the full video list for TikTok-style navigation
+            const videoListForNavigation = items.map((v) => ({
+              title: v.title,
+              speaker: v.subTitle || "Unknown",
+              timeAgo: "Recent",
+              views: v.views || 0,
+              sheared: 0,
+              saved: 0,
+              favorite: 0,
+              fileUrl: v.fileUrl,
+              imageUrl: v.fileUrl,
+              speakerAvatar: require("../../assets/images/Avatar-1.png").toString(),
+            }));
+
+            router.push({
+              pathname: "/reels/Reelsviewscroll",
+              params: {
+                title: item.title,
+                speaker: item.subTitle || "Unknown",
+                timeAgo: "Recent",
+                views: String(item.views || 0),
+                sheared: String(0),
+                saved: String(0),
+                favorite: String(0),
+                imageUrl: item.fileUrl,
+                speakerAvatar: require("../../assets/images/Avatar-1.png").toString(),
+                category: "videos",
+                videoList: JSON.stringify(videoListForNavigation),
+                currentIndex: String(index),
+              },
+            });
+          };
+
           const handleShare = async () => {
             try {
               await Share.share({
@@ -962,7 +1255,7 @@ export default function VideoComponent() {
           return (
             <View key={key} className="mr-4 w-[154px] flex-col items-center">
               <TouchableOpacity
-                onPress={togglePlay}
+                onPress={handleMiniCardPress}
                 className="w-full h-[232px] rounded-2xl overflow-hidden relative"
                 activeOpacity={0.9}
               >
@@ -999,11 +1292,15 @@ export default function VideoComponent() {
                 />
                 {!isPlaying && showOverlayMini[key] && (
                   <>
-                    <View className="absolute inset-0 justify-center items-center">
-                      <View className="bg-white/70 p-2 rounded-full">
-                        <Ionicons name="play" size={24} color="#FEA74E" />
+                    <TouchableOpacity
+                      onPress={togglePlay}
+                      className="absolute inset-0 justify-center items-center"
+                      activeOpacity={0.9}
+                    >
+                      <View className="bg-white/70 p-3 rounded-full">
+                        <Ionicons name="play" size={32} color="#FEA74E" />
                       </View>
-                    </View>
+                    </TouchableOpacity>
                     
                     {/* 🔥 Trending Indicators - Top Right Corner */}
                     {title === "Trending" && (
@@ -1036,12 +1333,12 @@ export default function VideoComponent() {
               </TouchableOpacity>
               {modalIndex === index && (
                 <>
-                  <TouchableWithoutFeedback onPress={() => setModalIndex(null)}>
+                  <TouchableWithoutFeedback onPress={closeAllMenus}>
                     <View className="absolute inset-0 z-40" />
                   </TouchableWithoutFeedback>
                   
                   {/* ✅ Modal content positioned over the video area */}
-                  <View className="absolute bottom-14 right-3 bg-white shadow-md rounded-lg p-3 z-50 w-[140px] h-[140]">
+                  <View className="absolute bottom-14 right-3 bg-white shadow-md rounded-lg p-3 z-50 w-[160px] h-[180]">
                     <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
                       <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
                       <Ionicons name="eye-outline" size={22} color="#1D2939" />
@@ -1055,11 +1352,11 @@ export default function VideoComponent() {
                     </TouchableOpacity>
                     <TouchableOpacity className="flex-row items-center justify-between mt-6">
                       <Text className="text-[#1D2939] font-rubik ml-2">Save to Library</Text>
-                      <MaterialIcons
-                        name="bookmark-border"
-                        size={22}
-                        color="#1D2939"
-                      />
+                      <MaterialIcons name="bookmark-border" size={22} color="#1D2939" />
+                    </TouchableOpacity>
+                    <TouchableOpacity className="py-2 flex-row items-center justify-between mt-2">
+                      <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
+                      <Ionicons name="download-outline" size={24} color="#090E24" />
                     </TouchableOpacity>
                   </View>
                 </>
@@ -1074,7 +1371,7 @@ export default function VideoComponent() {
                     {item.subTitle?.split(" ").slice(0, 4).join(" ") + " ..."}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => setModalIndex(modalIndex === index ? null : index)}
+                    onPress={() => { closeAllMenus(); setModalIndex(modalIndex === index ? null : index); }}
                     className="mr-2"
                   >
                     <Ionicons name="ellipsis-vertical" size={14} color="#9CA3AF" />
@@ -1114,6 +1411,14 @@ export default function VideoComponent() {
     }
     return [];
   };
+
+  // Load user interests into state once
+  const [userInterestsState, setUserInterestsState] = useState<string[]>([]);
+  useEffect(() => {
+    getUserInterests().then((ints) => setUserInterestsState(
+      Array.isArray(ints) ? ints.filter(Boolean).map((s) => String(s).toLowerCase()) : []
+    ));
+  }, []);
 
   // 🎯 Recommended for You - Based on user interests and engagement patterns
   const getRecommendedForYou = (): RecommendedItem[] => {
@@ -1217,60 +1522,75 @@ export default function VideoComponent() {
     if (!uploadedVideos.length) return [];
 
     const watchedSpeakers = previouslyViewedState.length > 0 
-      ? [...new Set(previouslyViewedState.map(v => v.subTitle))]
+      ? [...new Set(previouslyViewedState.map(v => (v.subTitle || '').toLowerCase()))]
       : [];
 
-    const combinedRecommendations = allIndexedVideos
-      .filter(video => {
-        const alreadyShown = trendingItems.some(t => t.fileUrl === video.fileUrl) ||
-                           previouslyViewedState.some(v => v.fileUrl === video.fileUrl);
-        return !alreadyShown;
-      })
-      .map(video => {
-        const originalVideo = uploadedVideos.find(v => v.fileUrl === video.fileUrl);
-        let recommendationScore = 0;
+    // Derive favorite speakers from user's favorites
+    const likedKeys = Object.keys(userFavorites || {}).filter(k => userFavorites[k]);
+    const likedSpeakers = new Set<string>();
+    likedKeys.forEach((k) => {
+      const video = allIndexedVideos.find(v => v.key === k);
+      if (video?.subTitle) likedSpeakers.add(String(video.subTitle).toLowerCase());
+    });
+    const interestKeywords = new Set<string>(userInterestsState || []);
 
-        // Base engagement score (from Popular in Interests logic)
-        const baseScore = (video.views || 0) + 
-                         (videoStats[video.key]?.favorite || 0) * 3 + 
-                         (videoStats[video.key]?.comment || 0) * 4;
-        recommendationScore += baseScore;
+    const scoreVideo = (video: any) => {
+      const originalVideo = uploadedVideos.find(v => v.fileUrl === video.fileUrl);
+      let recommendationScore = 1;
 
-        // Boost for favorite speakers (from New from Favorite Speakers logic)
-        const isFromFavoriteSpeaker = watchedSpeakers.includes(video.subTitle);
-        if (isFromFavoriteSpeaker) {
-          recommendationScore *= 1.8; // Higher boost for favorite speakers
-        
-          // Additional boost for recent content from favorite speakers
-        const now = new Date().getTime();
-        const createdAt = new Date(originalVideo?.createdAt || Date.now()).getTime();
-        const ageInDays = (now - createdAt) / (1000 * 60 * 60 * 24);
-          if (ageInDays <= 7) {
-            recommendationScore *= 1.3; // Recent content bonus
-          }
-        }
+      const titleLower = (video.title || '').toLowerCase();
+      const speakerLower = (video.subTitle || '').toLowerCase();
 
-        // Boost based on content similarity to user's viewing history
-        const userViewedSpeakers = previouslyViewedState.map(v => v.subTitle);
-        if (userViewedSpeakers.includes(video.subTitle)) {
-          recommendationScore *= 1.4;
-        }
+      // Strong boost if from user's favorited speakers
+      const fromLikedSpeaker = likedSpeakers.has(speakerLower);
+      if (fromLikedSpeaker) recommendationScore *= 3.0;
 
-        // Recency factor for all content
-        const now = new Date().getTime();
-        const createdAt = new Date(originalVideo?.createdAt || Date.now()).getTime();
-        const ageInDays = (now - createdAt) / (1000 * 60 * 60 * 24);
-        const recencyBoost = Math.max(0.6, 1 - (ageInDays / 30)); // Decay over 30 days
-        recommendationScore *= recencyBoost;
+      // Medium boost if from frequently watched speakers
+      const fromWatchedSpeaker = watchedSpeakers.includes(speakerLower);
+      if (fromWatchedSpeaker) recommendationScore *= 1.8;
 
-        return {
-          ...video,
-          recommendationScore,
-          isFromFavoriteSpeaker
-        };
-      })
-      .sort((a, b) => b.recommendationScore - a.recommendationScore)
-      .slice(0, 10) // Increased from 6 to accommodate both types
+      // Keyword interest matching in title or speaker name
+      let keywordMatches = 0;
+      interestKeywords.forEach((kw) => {
+        if (!kw) return;
+        if (titleLower.includes(kw) || speakerLower.includes(kw)) keywordMatches += 1;
+      });
+      if (keywordMatches > 0) {
+        // Scale with diminishing returns
+        recommendationScore *= (1 + Math.min(0.6, 0.25 * keywordMatches));
+      }
+
+      // Recent content slight preference
+      const now = new Date().getTime();
+      const createdAt = new Date(originalVideo?.createdAt || Date.now()).getTime();
+      const ageInDays = (now - createdAt) / (1000 * 60 * 60 * 24);
+      const recencyBoost = Math.max(0.75, 1 - (ageInDays / 45));
+      recommendationScore *= recencyBoost;
+
+      // Tie-breaker: low-weight global engagement
+      const globalTieBreaker = (video.globalViews || 0) * 0.001 + (video.globalLikes || 0) * 0.01 + (video.globalShares || 0) * 0.02;
+      recommendationScore += globalTieBreaker;
+
+      return {
+        ...video,
+        recommendationScore,
+        isFromFavoriteSpeaker: fromLikedSpeaker || fromWatchedSpeaker
+      };
+    };
+
+    const scoredFiltered = allIndexedVideos
+      // Only exclude items you've already viewed; allow overlap with Trending
+      .filter(video => !previouslyViewedState.some(v => v.fileUrl === video.fileUrl))
+      .map(scoreVideo)
+      .sort((a, b) => b.recommendationScore - a.recommendationScore);
+
+    const source = scoredFiltered.length > 0
+      ? scoredFiltered
+      // Fallback: include previously viewed if everything was filtered out
+      : allIndexedVideos.map(scoreVideo).sort((a, b) => b.recommendationScore - a.recommendationScore);
+
+    const combinedRecommendations = source
+      .slice(0, 12)
       .map(({ fileUrl, title, subTitle, views, imageUrl }) => ({
         fileUrl,
         title,
@@ -1280,7 +1600,40 @@ export default function VideoComponent() {
       }));
 
     return combinedRecommendations;
-  }, [uploadedVideos, previouslyViewedState, allIndexedVideos, trendingItems, videoStats]);
+  }, [uploadedVideos, previouslyViewedState, allIndexedVideos, trendingItems, videoStats, userFavorites, userInterestsState]);
+
+  // Ensure Recommended for You mini-cards show the play overlay by default
+  useEffect(() => {
+    const recommendedKeys = enhancedRecommendedForYou.map((item) => getVideoKey(item.fileUrl));
+    recommendedKeys.forEach((key) => {
+      setShowOverlayMini((prev) => {
+        if (prev[key]) return prev;
+        return { ...prev, [key]: true };
+      });
+    });
+  }, [enhancedRecommendedForYou]);
+
+  // 📱 Initialize auto-play when component mounts
+  useEffect(() => {
+    if (uploadedVideos.length > 0 && isAutoPlayEnabled) {
+      const timer = setTimeout(() => {
+        recomputeVisibilityFromLayouts();
+      }, 400);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [uploadedVideos.length, isAutoPlayEnabled, recomputeVisibilityFromLayouts]);
+
+  // 📱 Cleanup: Pause all videos when component loses focus
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // Pause all videos when leaving the screen
+        globalVideoStore.pauseAllVideos();
+        globalVideoStore.handleVideoVisibilityChange(null);
+      };
+    }, [])
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -1289,7 +1642,21 @@ export default function VideoComponent() {
   );
 
   return (
-    <ScrollView className="flex-1 px-3 w-full">
+    <ScrollView
+      ref={scrollViewRef}
+      className="flex-1 px-3 w-full"
+      onScrollBeginDrag={closeAllMenus}
+      onTouchStart={closeAllMenus}
+      onScroll={handleScroll}
+      onScrollEndDrag={() => {
+        recomputeVisibilityFromLayouts();
+      }}
+      onMomentumScrollEnd={() => {
+        recomputeVisibilityFromLayouts();
+      }}
+      scrollEventThrottle={16}
+      showsVerticalScrollIndicator={true}
+    >
       {uploadedVideos.length > 0 && (
         <>
           <Text className="text-[#344054] text-[16px] font-rubik-semibold my-4">
@@ -1369,8 +1736,8 @@ export default function VideoComponent() {
         renderMiniCards(
           `🔥 Trending Now • ${trendingItems.length} videos`,
           trendingItems,
-          rsModalIndex,
-          setRsModalIndex,
+          trendingModalIndex,
+          setTrendingModalIndex,
           miniCardViews,
           setMiniCardViews,
           miniCardPlaying,
@@ -1436,8 +1803,8 @@ export default function VideoComponent() {
         renderMiniCards(
           `🎯 Recommended for You • ${enhancedRecommendedForYou.length} videos`,
           enhancedRecommendedForYou,
-          rsModalIndex,
-          setRsModalIndex,
+          recommendedModalIndex,
+          setRecommendedModalIndex,
           miniCardViews,
           setMiniCardViews,
           miniCardPlaying,

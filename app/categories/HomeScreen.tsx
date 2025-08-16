@@ -73,9 +73,9 @@ export default function HomeScreen() {
       >
         
       </View>
-      <View className="bg-white top-16">
+   
   <BottomNav selectedTab={selectedTab} setSelectedTab={handleTabChange} />
-</View>
+
     </View>
   );
 }

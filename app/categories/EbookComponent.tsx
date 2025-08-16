@@ -1,12 +1,12 @@
 import {
-  AntDesign,
-  Fontisto,
-  Ionicons,
-  MaterialIcons,
+    AntDesign,
+    Fontisto,
+    Ionicons,
+    MaterialIcons,
 } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { useMediaStore } from "../store/useUploadStore";
 
 interface VideoCard {
@@ -229,7 +229,11 @@ export default function EbookComponent() {
             </View>
 
             {modalVisible === modalKey && (
-              <View className="absolute mt-[260px] right-4 bg-white shadow-md rounded-lg p-3 z-50 w-44">
+              <>
+                <TouchableWithoutFeedback onPress={() => setModalVisible(null)}>
+                  <View className="absolute inset-0 z-40" />
+                </TouchableWithoutFeedback>
+                <View className="absolute mt-[260px] right-4 bg-white shadow-md rounded-lg p-3 z-50 w-56 h-[180px]">
                 <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
                   <Text className="text-[#1D2939] font-rubik ml-2">
                     View Details
@@ -248,7 +252,13 @@ export default function EbookComponent() {
                   </Text>
                   <MaterialIcons name="library-add" size={18} color="#3A3E50" />
                 </TouchableOpacity>
-              </View>
+                <View className="h-px bg-gray-200 my-1" />
+                <TouchableOpacity className="py-2 flex-row items-center justify-between">
+                  <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
+                  <Ionicons name="download-outline" size={24} color="#090E24" />
+                </TouchableOpacity>
+                </View>
+              </>
             )}
           </View>
 
@@ -432,7 +442,19 @@ export default function EbookComponent() {
   );
 
   return (
-    <ScrollView className="flex-1">
+    <ScrollView
+      className="flex-1"
+      onScrollBeginDrag={() => {
+        setModalVisible(null);
+        setPvModalIndex(null);
+        setRsModalIndex(null);
+      }}
+      onTouchStart={() => {
+        setModalVisible(null);
+        setPvModalIndex(null);
+        setRsModalIndex(null);
+      }}
+    >
       <View className="mt-4">
         <Text className="text-[#344054] text-[16px] font-rubik-semibold mb-4">
           Reading

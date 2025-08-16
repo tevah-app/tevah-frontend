@@ -451,10 +451,28 @@ export default function UploadScreen() {
   };
 
   const handleUpload = async () => {
-    if (!file || !title || !selectedCategory || !selectedType || !thumbnail) {
-      Alert.alert("Missing fields", "Please complete all fields including selecting a thumbnail image.");
+    if (!file || !title || !selectedCategory || !selectedType) {
+      Alert.alert("Missing fields", "Please complete all required fields.");
       return;
     }
+
+    // Recommend thumbnail for music uploads
+    if (selectedType === "music" && !thumbnail) {
+      Alert.alert(
+        "Thumbnail Recommended", 
+        "Adding a thumbnail image will help your music stand out. Would you like to continue without one?",
+        [
+          { text: "Add Thumbnail", style: "cancel" },
+          { text: "Continue", onPress: () => proceedWithUpload() }
+        ]
+      );
+      return;
+    }
+
+    proceedWithUpload();
+  };
+
+  const proceedWithUpload = async () => {
 
     try {
       setLoading(true);
@@ -493,11 +511,16 @@ export default function UploadScreen() {
         type: file.mimeType,
         name: file.name,
       } as any);
-      formData.append("thumbnail", {
-        uri: thumbnail.uri,
-        type: thumbnail.mimeType,
-        name: thumbnail.name,
-      } as any);
+      
+      // ✅ Add thumbnail if selected
+      if (thumbnail) {
+        formData.append("thumbnail", {
+          uri: thumbnail.uri,
+          type: thumbnail.mimeType,
+          name: thumbnail.name,
+        } as any);
+      }
+      
       formData.append("title", title);
       formData.append("description", description);
       formData.append("contentType", selectedType);
@@ -511,16 +534,48 @@ export default function UploadScreen() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+          Accept: "application/json",
         },
         body: formData,
       });
 
-      const result = await res.json();
+      const contentType = res.headers.get("content-type") || "";
+      let result: any = null;
+      let rawText: string | null = null;
+      try {
+        if (contentType.includes("application/json")) {
+          result = await res.json();
+        } else {
+          rawText = await res.text();
+        }
+      } catch (parseError) {
+        try {
+          rawText = await res.text();
+        } catch {}
+      }
       setLoading(false);
 
       if (!res.ok) {
-        console.error("❌ Upload failed:", result);
-        Alert.alert("Upload failed", result.message || "Please try again.");
+        console.error("❌ Upload failed:", {
+          status: res.status,
+          contentType,
+          result,
+          rawTextPreview: rawText ? rawText.slice(0, 300) : null,
+        });
+        const message =
+          (result && (result.message || result.error)) ||
+          (rawText ? `Unexpected response (${res.status}).` : `HTTP ${res.status}`);
+        Alert.alert("Upload failed", message || "Please try again.");
+        return;
+      }
+
+      if (!result) {
+        console.error("❌ Upload response not JSON:", {
+          status: res.status,
+          contentType,
+          rawTextPreview: rawText ? rawText.slice(0, 300) : null,
+        });
+        Alert.alert("Upload failed", "Server returned unexpected response. Please try again.");
         return;
       }
 
@@ -538,6 +593,9 @@ export default function UploadScreen() {
         contentType: uploaded.contentType,
         fileUrl: uploaded.fileUrl,
         fileMimeType: uploaded.fileMimeType || file.mimeType,
+        // Visual cover fields
+        thumbnailUrl: uploaded.thumbnailUrl || uploaded.imageUrl || undefined,
+        imageUrl: uploaded.thumbnailUrl || uploaded.imageUrl || "",
         viewCount: 0,
         listenCount: 0,
         readCount: 0,
@@ -548,7 +606,6 @@ export default function UploadScreen() {
         updatedAt: now.toISOString(),
         topics: [],
         timeAgo: getTimeAgo(now.toISOString()),
-        imageUrl: uploaded.imageUrl || "",
         favorite: 0,
         saved: 0,
         sheared: 0,

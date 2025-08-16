@@ -1,21 +1,23 @@
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ CORRECT
+import axios from "axios";
+import Constants from "expo-constants";
+import * as Location from "expo-location";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
   Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
-  Alert,
+  View,
 } from "react-native";
 import AuthHeader from "../components/AuthHeader";
 import ProgressBar from "../components/ProgressBar";
-import * as Location from "expo-location";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ CORRECT
-import { API_BASE_URL } from "../utils/api";
-import Constants from "expo-constants";
 
 type Suggestion = {
   id: string;
@@ -61,7 +63,7 @@ function ChurchNameAndLocation() {
 
         setChurches(churchSuggestions);
       } catch (error) {
-        console.error("Error fetching churches:", error);
+        // console.error("Error fetching churches:", error);
       }
     };
 
@@ -86,7 +88,7 @@ function ChurchNameAndLocation() {
           const locData = await locRes.json();
 
           if (!locData.predictions || !Array.isArray(locData.predictions)) {
-            console.error("No predictions returned:", locData);
+            // console.error("No predictions returned:", locData);
             return;
           }
 
@@ -100,7 +102,7 @@ function ChurchNameAndLocation() {
 
           setFilteredSuggestions(locationSuggestions);
         } catch (err) {
-          console.error("Error fetching suggestions:", err);
+          // console.error("Error fetching suggestions:", err);
         }
       };
 
@@ -140,7 +142,7 @@ function ChurchNameAndLocation() {
           setChurches(churchSuggestions);
         }
       } catch (error) {
-        console.error("Error processing location:", error);
+        // console.error("Error processing location:", error);
       }
     }
   };
@@ -177,7 +179,7 @@ function ChurchNameAndLocation() {
         Alert.alert("Error", response.data.message || "An error occurred");
       }
     } catch (error: any) {
-      console.error("Location submission error:", error);
+      // console.error("Location submission error:", error);
       Alert.alert(
         "Error",
         error.response?.data?.message || "Something went wrong"
@@ -188,60 +190,74 @@ function ChurchNameAndLocation() {
   };
 
   return (
-    <View className="flex flex-col bg-[#FCFCFD] mx-auto w-full justify-center items-center">
-       <View className="px-4 mt-6">
-        <AuthHeader title="Profile Setup" />
-      </View>
-      <View className="flex flex-col w-[333px] mt-4">
-        <ProgressBar currentStep={3} totalSteps={7} />
-        <Text className="text-[#1D2939] font-semibold mt-3 ml-1">
-          Let&apos;s make this feel like home
-        </Text>
-      </View>
-
-      <View className="flex flex-col h-[627px] w-[333px]">
-        <View className="flex flex-col h-[257px]">
-          <Text className="font-rubik-semibold text-[32px] text-[#1D2939]">
-            What’s the name of your church?
-          </Text>
-
-          <View className="flex flex-row items-center justify-between h-[56px] w-[333px] mt-5 border rounded-3xl bg-white px-3 mb-2">
-            <TextInput
-              className="flex-1 h-full text-base text-gray-800"
-              placeholder="Search church or location"
-              onChangeText={(text) => {
-                setSearch(text);
-                setSelectedItem(null);
-              }}
-              value={search}
-            />
-            <Ionicons name="search" size={30} color="#6B7280" />
+    <SafeAreaView className="flex-1 ">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <View className="w-full items-center">
+          <View className="w-[370px]">
+            <AuthHeader title="Profile Setup" />
           </View>
+          <View className="w-[333px] mt-4 bg-[#FCFCFD]">
+            <ProgressBar currentStep={3} totalSteps={7} />
+            <Text className="text-[#1D2939] font-semibold mt-3 ml-1">
+              Let&apos;s make this feel like home
+            </Text>
+          </View>
+        </View>
 
-          <FlatList
-            data={filteredSuggestions}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => selectSuggestion(item)}>
-                <Text className="p-3 bg-white border-b">
-                  {item.name}
-                  {item.type === "location" ? " (Location)" : ""}
-                </Text>
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              search.trim().length > 0 ? (
-                <Text className="text-center text-gray-500 mt-4">
-                  No matches found
-                </Text>
-              ) : null
-            }
-          />
+        <View className="flex-1 w-full items-center mt-2">
+          <View className="flex-1 w-[333px]">
+            <Text className="font-rubik-semibold text-[32px] text-[#1D2939]">
+              What’s the name of your church?
+            </Text>
 
-          {selectedItem && (
+            <View className="flex flex-row items-center justify-between h-[56px] w-full mt-5 border rounded-3xl bg-white px-3 mb-2">
+              <TextInput
+                className="flex-1 h-full text-base text-gray-800"
+                placeholder="Search church or location"
+                onChangeText={(text) => {
+                  setSearch(text);
+                  setSelectedItem(null);
+                }}
+                value={search}
+                returnKeyType="search"
+              />
+              <Ionicons name="search" size={30} color="#6B7280" />
+            </View>
+
+            <View className="flex-1">
+              <FlatList
+                data={filteredSuggestions}
+                keyExtractor={(item) => item.id}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity onPress={() => selectSuggestion(item)}>
+                    <Text className="p-3 bg-white border-b">
+                      {item.name}
+                      {item.type === "location" ? " (Location)" : ""}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  search.trim().length > 0 ? (
+                    <Text className="text-center text-gray-500 mt-4">
+                      No matches found
+                    </Text>
+                  ) : null
+                }
+                contentContainerStyle={{ paddingBottom: 100 }}
+              />
+            </View>
+          </View>
+        </View>
+
+        {selectedItem && (
+          <View className="absolute left-0 right-0 bottom-6 items-center">
             <TouchableOpacity
               onPress={handleNext}
-              className={`bg-[#090E24] rounded-full w-full h-[48px] items-center justify-center mt-6 ${
+              className={`bg-[#090E24] rounded-full w-[333px] h-[48px] items-center justify-center ${
                 loading ? "opacity-50" : ""
               }`}
               disabled={loading}
@@ -250,10 +266,10 @@ function ChurchNameAndLocation() {
                 {loading ? "Submitting..." : "Next"}
               </Text>
             </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </View>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

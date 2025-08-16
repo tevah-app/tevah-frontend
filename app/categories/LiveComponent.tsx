@@ -5,7 +5,7 @@ import {
     MaterialIcons,
 } from "@expo/vector-icons";
 import React, { useCallback, useState } from "react";
-import { Image, ImageSourcePropType, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Image, ImageSourcePropType, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 
 import { router, useFocusEffect, useRouter } from "expo-router";
 import { useMediaStore } from "../store/useUploadStore";
@@ -484,7 +484,11 @@ const renderVideoCard = (video: VideoCard, index: number, p0: string) => {
 
        
         {modalVisible === modalKey && (
-          <View className="absolute top-[300px] right-6 bg-white shadow-md rounded-lg p-3 z-50 w-44">
+          <>
+            <TouchableWithoutFeedback onPress={() => setModalVisible(null)}>
+              <View className="absolute inset-0 z-40" />
+            </TouchableWithoutFeedback>
+            <View className="absolute top-[300px] right-6 bg-white shadow-md rounded-lg p-3 z-50 w-56">
             <TouchableOpacity className="py-2 border-b border-gray-200 flex-row justify-between">
               <Text className="text-[#1D2939] ml-2">View Details</Text>
               <Ionicons name="eye-outline" size={16} color="#3A3E50" />
@@ -497,7 +501,13 @@ const renderVideoCard = (video: VideoCard, index: number, p0: string) => {
               <Text className="text-[#1D2939] ml-2">Save to Library</Text>
               <MaterialIcons name="library-add" size={18} color="#3A3E50" />
             </TouchableOpacity>
-          </View>
+            <View className="h-px bg-gray-200 my-1" />
+            <TouchableOpacity className="py-2 flex-row justify-between">
+              <Text className="text-[#1D2939] ml-2">Download</Text>
+              <Ionicons name="download-outline" size={24} color="#090E24" />
+            </TouchableOpacity>
+            </View>
+          </>
         )}
       </TouchableOpacity>
     );
@@ -643,7 +653,11 @@ const renderVideoCard = (video: VideoCard, index: number, p0: string) => {
   );
   
   return (
-    <ScrollView className="flex-1 pb-10">
+    <ScrollView
+      className="flex-1 pb-10"
+      onScrollBeginDrag={() => setModalVisible(null)}
+      onTouchStart={() => setModalVisible(null)}
+    >
       <View className="mt-9">
         {videos.map((video, index) => renderVideoCard(video, index, "videos"))}
       </View>

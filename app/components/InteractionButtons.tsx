@@ -1,7 +1,8 @@
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { View, TouchableOpacity, Text, Share, Alert } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useInteractionStore, useContentStats, useUserInteraction, useContentCount } from '../store/useInteractionStore';
+import { Alert, Share, Text, TouchableOpacity, View } from 'react-native';
+import { useContentCount, useContentStats, useInteractionStore, useUserInteraction } from '../store/useInteractionStore';
+import CommentsModal from './CommentsModal';
 
 interface InteractionButtonsProps {
   contentId: string;
@@ -45,6 +46,9 @@ export default function InteractionButtons({
     save: false,
     share: false,
   });
+
+  // Local fallback for opening comments when no handler is supplied
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
 
   // Load stats when component mounts
   useEffect(() => {
@@ -107,6 +111,14 @@ export default function InteractionButtons({
     }
   };
 
+  const handleCommentPress = () => {
+    if (onCommentPress) {
+      onCommentPress();
+      return;
+    }
+    setIsCommentsOpen(true);
+  };
+
   const ButtonContainer = layout === 'vertical' ? 
     ({ children }: { children: React.ReactNode }) => (
       <View className="flex-col space-y-4">
@@ -122,6 +134,7 @@ export default function InteractionButtons({
   const ButtonSpacing = layout === 'vertical' ? 'mt-6' : 'ml-6';
 
   return (
+    <>
     <ButtonContainer>
       {/* Like Button */}
       <TouchableOpacity 
@@ -143,7 +156,7 @@ export default function InteractionButtons({
 
       {/* Comment Button */}
       <TouchableOpacity 
-        onPress={onCommentPress} 
+        onPress={handleCommentPress} 
         className={`flex-col justify-center items-center ${ButtonSpacing}`}
       >
         <Ionicons name="chatbubble-sharp" size={iconSize} color="white" />
@@ -172,20 +185,19 @@ export default function InteractionButtons({
         )}
       </TouchableOpacity>
 
-      {/* Share Button */}
-      <TouchableOpacity 
-        onPress={handleShare} 
-        className={`flex-col justify-center items-center ${ButtonSpacing}`}
-        disabled={isLoading.share}
-      >
-        <Ionicons name="share-outline" size={iconSize} color="white" />
-        {showCounts && (
-          <Text className="text-[10px] text-white font-rubik-semibold mt-1">
-            {sharesCount}
-          </Text>
-        )}
-      </TouchableOpacity>
+
     </ButtonContainer>
+
+    {/* Inline Comments Modal fallback */}
+    {isCommentsOpen && (
+      <CommentsModal
+        isVisible={isCommentsOpen}
+        onClose={() => setIsCommentsOpen(false)}
+        contentId={contentId}
+        contentTitle={contentTitle}
+      />
+    )}
+    </>
   );
 }
 

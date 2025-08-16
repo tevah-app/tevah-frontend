@@ -1,25 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-  Image,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useInteractionStore, useComments, useCommentsLoading } from '../store/useInteractionStore';
+import * as Haptics from 'expo-haptics';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useInteractionStore } from '../store/useInteractionStore';
 
 interface CommentsModalProps {
   isVisible: boolean;
   onClose: () => void;
   contentId: string;
   contentTitle: string;
+}
+
+interface CommentItem {
+  id: string;
+  comment: string;
+  username: string;
+  userAvatar?: string;
+  timestamp: string;
+  likes: number;
+  isLiked: boolean;
+  replies?: CommentItem[];
 }
 
 export default function CommentsModal({
@@ -30,24 +42,55 @@ export default function CommentsModal({
 }: CommentsModalProps) {
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   const {
     addComment,
     loadComments,
     toggleCommentLike,
+    comments,
+    loadingComments,
   } = useInteractionStore();
 
-  const comments = useComments(contentId);
-  const isLoading = useCommentsLoading(contentId);
+  // Memoize the comments and loading state for this specific contentId
+  const currentComments = useMemo(() => {
+    return comments[contentId] || [];
+  }, [comments, contentId]);
 
-  // Load comments when modal opens
+  const isLoading = useMemo(() => {
+    return loadingComments[`${contentId}_comments`] || false;
+  }, [loadingComments, contentId]);
+
+  // Load comments only once when modal becomes visible
   useEffect(() => {
-    if (isVisible && comments.length === 0) {
+    if (isVisible && contentId && !hasLoaded) {
+      setHasLoaded(true);
       loadComments(contentId);
     }
-  }, [isVisible, contentId, comments.length, loadComments]);
+  }, [isVisible, contentId, hasLoaded, loadComments]);
 
-  const handleSubmitComment = async () => {
+  // Reset loaded state when modal closes
+  useEffect(() => {
+    if (!isVisible) {
+      setHasLoaded(false);
+      setNewComment('');
+      setKeyboardVisible(false);
+    }
+  }, [isVisible]);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (isVisible) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+    }
+  }, [isVisible]);
+
+  const handleSubmitComment = useCallback(async () => {
     if (!newComment.trim()) {
       Alert.alert('Error', 'Please enter a comment');
       return;
@@ -55,26 +98,37 @@ export default function CommentsModal({
 
     setIsSubmitting(true);
     try {
+      // Add haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
       await addComment(contentId, newComment.trim());
       setNewComment('');
+      
+      // Scroll to bottom to show new comment
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } catch (error) {
       console.error('Error adding comment:', error);
       Alert.alert('Error', 'Failed to add comment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [newComment, contentId, addComment]);
 
-  const handleCommentLike = async (commentId: string) => {
+  const handleCommentLike = useCallback(async (commentId: string) => {
     try {
+      // Add haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
       await toggleCommentLike(commentId, contentId);
     } catch (error) {
       console.error('Error liking comment:', error);
       Alert.alert('Error', 'Failed to like comment. Please try again.');
     }
-  };
+  }, [contentId, toggleCommentLike]);
 
-  const formatTimeAgo = (timestamp: string) => {
+  const formatTimeAgo = useCallback((timestamp: string) => {
     const now = new Date();
     const commentTime = new Date(timestamp);
     const diffMs = now.getTime() - commentTime.getTime();
@@ -87,7 +141,91 @@ export default function CommentsModal({
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return commentTime.toLocaleDateString();
-  };
+  }, []);
+
+  const renderComment = useCallback(({ item }: { item: CommentItem }) => (
+    <View className="flex-row px-4 py-3">
+      {/* Avatar */}
+      <View className="w-8 h-8 rounded-full bg-gray-300 mr-3 overflow-hidden">
+        {item.userAvatar ? (
+          <Image 
+            source={{ uri: item.userAvatar }} 
+            className="w-full h-full"
+            resizeMode="cover"
+          />
+        ) : (
+          <View className="w-full h-full bg-gray-400 justify-center items-center">
+            <Text className="text-white text-xs font-rubik-semibold">
+              {item.username?.[0]?.toUpperCase() || 'U'}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Comment Content */}
+      <View className="flex-1">
+        <View className="flex-row items-center mb-1">
+          <Text className="font-rubik-semibold text-gray-900 text-sm">
+            {item.username || 'Anonymous'}
+          </Text>
+          <Text className="text-gray-500 text-xs ml-2 font-rubik">
+            {formatTimeAgo(item.timestamp)}
+          </Text>
+        </View>
+        
+        <Text className="text-gray-800 text-sm font-rubik leading-5 mb-2">
+          {item.comment}
+        </Text>
+
+        {/* Comment Actions */}
+        <View className="flex-row items-center">
+          <TouchableOpacity
+            onPress={() => handleCommentLike(item.id)}
+            className="flex-row items-center mr-4"
+          >
+            <Ionicons 
+              name={item.isLiked ? "heart" : "heart-outline"} 
+              size={16} 
+              color={item.isLiked ? "#EF4444" : "#9CA3AF"} 
+            />
+            <Text className="text-gray-500 text-xs ml-1 font-rubik">
+              {item.likes}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity className="flex-row items-center mr-4">
+            <Ionicons name="chatbubble-outline" size={14} color="#9CA3AF" />
+            <Text className="text-gray-500 text-xs ml-1 font-rubik">
+              Reply
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity>
+            <Text className="text-gray-500 text-xs font-rubik">
+              More
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  ), [handleCommentLike, formatTimeAgo]);
+
+  const renderEmptyState = () => (
+    <View className="flex-1 justify-center items-center py-20">
+      <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
+      <Text className="text-gray-500 mt-4 font-rubik text-center text-base">
+        No comments yet{'\n'}
+        <Text className="text-gray-400">Be the first to comment!</Text>
+      </Text>
+    </View>
+  );
+
+  const renderLoadingState = () => (
+    <View className="flex-1 justify-center items-center py-20">
+      <ActivityIndicator size="large" color="#FEA74E" />
+      <Text className="text-gray-500 mt-2 font-rubik">Loading comments...</Text>
+    </View>
+  );
 
   return (
     <Modal
@@ -99,16 +237,21 @@ export default function CommentsModal({
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View className="flex-1 bg-white">
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-gray-200">
+            <TouchableOpacity 
+              onPress={onClose}
+              className="p-1"
+            >
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
             <Text className="text-lg font-rubik-semibold text-gray-900">
               Comments
             </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
+            <View style={{ width: 24 }} />
           </View>
 
           {/* Content Title */}
@@ -119,112 +262,59 @@ export default function CommentsModal({
           </View>
 
           {/* Comments List */}
-          <ScrollView 
-            className="flex-1 px-4"
+          {isLoading && currentComments.length === 0 ? (
+            renderLoadingState()
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={currentComments as any}
+              renderItem={renderComment as any}
+              keyExtractor={(item: any) => item.id}
             showsVerticalScrollIndicator={false}
-          >
-            {isLoading && comments.length === 0 ? (
-              <View className="flex-1 justify-center items-center py-20">
-                <ActivityIndicator size="large" color="#FEA74E" />
-                <Text className="text-gray-500 mt-2 font-rubik">Loading comments...</Text>
-              </View>
-            ) : comments.length === 0 ? (
-              <View className="flex-1 justify-center items-center py-20">
-                <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
-                <Text className="text-gray-500 mt-4 font-rubik text-center">
-                  No comments yet.{'\n'}Be the first to comment!
-                </Text>
-              </View>
-            ) : (
-              <View className="py-4">
-                {comments.map((comment) => (
-                  <View key={comment.id} className="mb-4 pb-4 border-b border-gray-100">
-                    <View className="flex-row items-start">
-                      {/* Avatar */}
-                      <View className="w-8 h-8 rounded-full bg-gray-300 mr-3 overflow-hidden">
-                        {comment.userAvatar ? (
-                          <Image 
-                            source={{ uri: comment.userAvatar }} 
-                            className="w-full h-full"
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <View className="w-full h-full bg-gray-400 justify-center items-center">
-                            <Text className="text-white text-xs font-rubik-semibold">
-                              {comment.username?.[0]?.toUpperCase() || 'U'}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      {/* Comment Content */}
-                      <View className="flex-1">
-                        <View className="flex-row items-center mb-1">
-                          <Text className="font-rubik-semibold text-gray-900 text-sm">
-                            {comment.username || 'Anonymous'}
-                          </Text>
-                          <Text className="text-gray-500 text-xs ml-2 font-rubik">
-                            {formatTimeAgo(comment.timestamp)}
-                          </Text>
-                        </View>
-                        
-                        <Text className="text-gray-800 text-sm font-rubik leading-5">
-                          {comment.comment}
-                        </Text>
-
-                        {/* Comment Actions */}
-                        <View className="flex-row items-center mt-2">
-                          <TouchableOpacity
-                            onPress={() => handleCommentLike(comment.id)}
-                            className="flex-row items-center mr-4"
-                          >
-                            <Ionicons 
-                              name="heart" 
-                              size={16} 
-                              color={comment.likes > 0 ? "#EF4444" : "#9CA3AF"} 
-                            />
-                            <Text className="text-gray-500 text-xs ml-1 font-rubik">
-                              {comment.likes}
-                            </Text>
-                          </TouchableOpacity>
-                          
-                          <TouchableOpacity className="flex-row items-center">
-                            <Ionicons name="chatbubble-outline" size={14} color="#9CA3AF" />
-                            <Text className="text-gray-500 text-xs ml-1 font-rubik">
-                              Reply
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-          </ScrollView>
+              contentContainerStyle={{ 
+                flexGrow: 1,
+                paddingBottom: 20
+              }}
+              ListEmptyComponent={renderEmptyState}
+              onEndReachedThreshold={0.1}
+              onEndReached={() => {
+                // Load more comments if available
+                if (currentComments.length > 0) {
+                  loadComments(contentId, Math.floor(currentComments.length / 20) + 1);
+                }
+              }}
+              keyboardShouldPersistTaps="handled"
+            />
+          )}
 
           {/* Comment Input */}
-          <View className="border-t border-gray-200 bg-white">
-            <View className="flex-row items-end p-4 space-x-3">
+          <View className="border-t border-gray-200 bg-white px-4 py-3">
+            <View className="flex-row items-end space-x-3">
               <View className="flex-1">
                 <TextInput
+                  ref={inputRef}
                   value={newComment}
                   onChangeText={setNewComment}
                   placeholder="Add a comment..."
                   multiline
                   maxLength={500}
-                  className="border border-gray-300 rounded-lg px-3 py-2 max-h-20 font-rubik text-sm"
+                  className="border border-gray-300 rounded-2xl px-4 py-3 max-h-20 font-rubik text-sm bg-gray-50"
                   style={{ textAlignVertical: 'top' }}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSubmitComment}
+                  blurOnSubmit={false}
                 />
+                {newComment.length > 0 && (
                 <Text className="text-right text-xs text-gray-400 mt-1 font-rubik">
                   {newComment.length}/500
                 </Text>
+                )}
               </View>
               
               <TouchableOpacity
                 onPress={handleSubmitComment}
                 disabled={!newComment.trim() || isSubmitting}
-                className={`px-4 py-2 rounded-lg ${
+                className={`px-4 py-3 rounded-full ${
                   newComment.trim() && !isSubmitting
                     ? 'bg-[#FEA74E]'
                     : 'bg-gray-300'
@@ -235,7 +325,7 @@ export default function CommentsModal({
                 ) : (
                   <Ionicons 
                     name="send" 
-                    size={16} 
+                    size={18} 
                     color={newComment.trim() ? "white" : "#9CA3AF"} 
                   />
                 )}

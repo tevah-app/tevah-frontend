@@ -125,6 +125,7 @@ export interface MediaItem {
 }
 
 interface MediaState {
+  forceRefreshWithCompleteUserData(): unknown;
   mediaList: MediaItem[];
   isLoaded: boolean;
   addMedia: (item: MediaItem) => void;

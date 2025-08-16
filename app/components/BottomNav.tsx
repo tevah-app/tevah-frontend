@@ -218,12 +218,11 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
     Platform,
-    StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
-import Upload from "../categories/upload";
+import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
 import { useMediaStore } from "../store/useUploadStore";
 
 // Bottom tab config
@@ -259,9 +258,10 @@ export default function BottomNav({
   setSelectedTab,
 }: BottomNavProps) {
   const [showActions, setShowActions] = useState(false);
-  const [showUploadScreen, setShowUploadScreen] = useState(false);
 
   const handleFabToggle = () => {
+    console.log('🔄 FAB clicked! Current showActions:', showActions);
+    console.log('🔄 Will set showActions to:', !showActions);
     setShowActions(!showActions);
   };
 
@@ -280,23 +280,16 @@ export default function BottomNav({
 
   return (
     <>
-      {/* Upload Overlay */}
-      {showUploadScreen && (
-        <View className="absolute top-0 left-0 right-0 bottom-0 z-50">
-          <Upload onClose={() => setShowUploadScreen(false)} />
-        </View>
-      )}
 
-      {/* Background Blur */}
-      {showActions && Platform.OS !== "web" && (
-        <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
-      )}
 
       {/* FAB Action Buttons */}
       {showActions && (
-     <View className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[220px] flex-row justify-center items-center z-20 mb-12">
+     <View 
+        className="absolute bottom-[100px] left-1/2 -translate-x-1/2 w-[220px] flex-row justify-center items-center"
+        style={{ zIndex: 30 }} // Lower than FAB button
+      >
 
-          <View className="rounded-2xl overflow-hidden w-full h-[70px] mb-12">
+          <View className="rounded-2xl overflow-hidden w-full h-[70px]">
             {Platform.OS !== "web" ? (
               <BlurView
                 intensity={80}
@@ -351,7 +344,7 @@ export default function BottomNav({
       )}
 
       {/* Bottom Navigation Bar */}
-      <View className="absolute bottom-0 left-0 right-0 h-24 bg-white flex-row justify-around items-center shadow-lg z-10 mb-16">
+      <View className="absolute bottom-0 left-0 right-0 h-24 bg-white flex-row justify-around items-center shadow-lg z-10">
         {/* First half of tabs */}
         {Object.entries(tabConfig)
           .slice(0, 2)
@@ -360,7 +353,20 @@ export default function BottomNav({
             return (
               <TouchableOpacity
                 key={tab}
-                onPress={() => setSelectedTab(tab)}
+                onPress={() => {
+                  // Stop any active audio and pause all videos when switching tabs
+                  try {
+                    useMediaStore.getState().stopAudioFn?.();
+                  } catch (e) {
+                    // no-op
+                  }
+                  try {
+                    useGlobalVideoStore.getState().pauseAllVideos();
+                  } catch (e) {
+                    // no-op
+                  }
+                  setSelectedTab(tab);
+                }}
                 className="items-center justify-center "
               >
                 <IconComponent
@@ -379,19 +385,7 @@ export default function BottomNav({
             );
           })}
 
-        {/* Floating Action Button */}
-        <View className="absolute -top-6 bg-white p-1 rounded-full shadow-md">
-          <TouchableOpacity
-            className="w-12 h-12 rounded-full bg-white items-center justify-center"
-            onPress={handleFabToggle}
-          >
-            <AntDesign
-              name={showActions ? "close" : "plus"}
-              size={18}
-              color="#256E63"
-            />
-          </TouchableOpacity>
-        </View>
+
 
         {/* Second half of tabs */}
         {Object.entries(tabConfig)
@@ -401,7 +395,20 @@ export default function BottomNav({
             return (
               <TouchableOpacity
                 key={tab}
-                onPress={() => setSelectedTab(tab)}
+                onPress={() => {
+                  // Stop any active audio and pause all videos when switching tabs
+                  try {
+                    useMediaStore.getState().stopAudioFn?.();
+                  } catch (e) {
+                    // no-op
+                  }
+                  try {
+                    useGlobalVideoStore.getState().pauseAllVideos();
+                  } catch (e) {
+                    // no-op
+                  }
+                  setSelectedTab(tab);
+                }}
                 className="items-center justify-center"
               >
                 <IconComponent
@@ -419,6 +426,28 @@ export default function BottomNav({
               </TouchableOpacity>
             );
           })}
+      </View>
+
+      {/* Floating Action Button - Rendered separately to ensure it's always on top */}
+      <View 
+        className="absolute bottom-[52px] left-1/2 -translate-x-1/2 bg-white p-1 rounded-full shadow-md"
+        style={{ zIndex: 100 }}
+      >
+                  <TouchableOpacity
+            className="w-12 h-12 rounded-full bg-white items-center justify-center"
+            onPress={handleFabToggle}
+            style={{ 
+              zIndex: 100,
+              elevation: 15
+            }}
+            activeOpacity={0.7}
+          >
+          <AntDesign
+            name={showActions ? "close" : "plus"}
+            size={18}
+            color="#256E63"
+          />
+        </TouchableOpacity>
       </View>
     </>
   );

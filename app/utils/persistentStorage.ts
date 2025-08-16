@@ -41,6 +41,26 @@ export const getViewed = async (): Promise<any[]> => {
   }
 };
 
+// 🎵 Audio previously viewed persistence (separate from videos)
+export const persistViewedAudio = async (items: any[]) => {
+  try {
+    await AsyncStorage.setItem("globalViewedAudio", JSON.stringify(items));
+    console.log("✅ Global viewed audio persisted successfully");
+  } catch (err) {
+    console.error("❌ Failed to save global viewed audio:", err);
+  }
+};
+
+export const getViewedAudio = async (): Promise<any[]> => {
+  try {
+    const stored = await AsyncStorage.getItem("globalViewedAudio");
+    return stored ? JSON.parse(stored) : [];
+  } catch (err) {
+    console.error("❌ Failed to load global viewed audio:", err);
+    return [];
+  }
+};
+
 // 🎬 NEW: Media list persistence (the key to social media behavior)
 export const persistMediaList = async (mediaList: any[]) => {
   try {

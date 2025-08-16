@@ -2,18 +2,21 @@ import "dotenv/config";
 
 export default {
   expo: {
-    name: "TevahApp1",
-    slug: "TevahApp1",
+    name: "Jevah App",
+    slug: "jevah-app",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "tevahapp1",
+    scheme: "jevahapp",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
 
     extra: {
       API_URL: process.env.EXPO_PUBLIC_API_URL,
       CLERK_KEY: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+      eas: {
+        projectId: "950f2be5-a0c8-4a40-ab5e-5922d7a04d17"
+      }
     },
 
     ios: {

@@ -45,11 +45,38 @@ class ContentInteractionService {
     this.baseURL = API_BASE_URL || 'http://localhost:3000'; // Fallback for development
   }
 
+  private isValidObjectId(id?: string): boolean {
+    return typeof id === 'string' && /^[a-f\d]{24}$/i.test(id);
+  }
+
   // Get authorization header with user token
   private async getAuthHeaders(): Promise<HeadersInit> {
     try {
       const userStr = await AsyncStorage.getItem('user');
-      const token = await AsyncStorage.getItem('userToken');
+      
+      // Try multiple token keys since your app uses different ones
+      let token = await AsyncStorage.getItem('userToken'); // From api.ts
+      if (!token) {
+        token = await AsyncStorage.getItem('token'); // From login.tsx, codeVerification.tsx
+      }
+      if (!token) {
+        // Try SecureStore for OAuth tokens
+        try {
+          const { default: SecureStore } = await import('expo-secure-store');
+          token = await SecureStore.getItemAsync('jwt'); // From OAuth flow
+        } catch (secureStoreError) {
+          console.log('SecureStore not available or no JWT token');
+        }
+      }
+      
+      // DEBUG: Log token status
+      console.log('🔍 AUTH DEBUG: userStr exists:', !!userStr);
+      console.log('🔍 AUTH DEBUG: token exists:', !!token);
+      console.log('🔍 AUTH DEBUG: token value:', token ? `${token.substring(0, 20)}...` : 'null');
+      console.log('🔍 AUTH DEBUG: token source:', 
+        await AsyncStorage.getItem('userToken') ? 'userToken' :
+        await AsyncStorage.getItem('token') ? 'token' : 'jwt/none'
+      );
       
       if (token) {
         return {
@@ -58,6 +85,7 @@ class ContentInteractionService {
         };
       }
       
+      console.warn('⚠️ No token found in AsyncStorage or SecureStore');
       return {
         'Content-Type': 'application/json',
       };
@@ -87,10 +115,14 @@ class ContentInteractionService {
   // ============= LIKE INTERACTIONS =============
   async toggleLike(contentId: string, contentType: string): Promise<{ liked: boolean; totalLikes: number }> {
     try {
+      if (!this.isValidObjectId(contentId)) {
+        return this.fallbackToggleLike(contentId);
+      }
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseURL}/api/content/${contentId}/like`, {
+      const response = await fetch(`${this.baseURL}/api/interactions/media/${contentId}/like`, {
         method: 'POST',
         headers,
+        // Backend does not require a body; keep optional for future-proofing
         body: JSON.stringify({ contentType }),
       });
 
@@ -98,10 +130,11 @@ class ContentInteractionService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const raw = await response.json();
+      const data = (raw && raw.data) ? raw.data : raw;
       return {
-        liked: data.liked,
-        totalLikes: data.totalLikes,
+        liked: Boolean(data?.liked),
+        totalLikes: Number(data?.totalLikes ?? 0),
       };
     } catch (error) {
       console.error('Error toggling like:', error);
@@ -114,20 +147,38 @@ class ContentInteractionService {
   async toggleSave(contentId: string, contentType: string): Promise<{ saved: boolean; totalSaves: number }> {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseURL}/api/content/${contentId}/save`, {
+      
+      // DEBUG: Log the request details
+      console.log(`🔍 SAVE DEBUG: Making request to ${this.baseURL}/api/interactions/media/${contentId}/save`);
+      console.log(`🔍 SAVE DEBUG: Headers:`, headers);
+      console.log(`🔍 SAVE DEBUG: Body:`, { contentType });
+      
+      // NOTE: Assuming backend save endpoint exists at interactions path; falls back if not
+      const response = await fetch(`${this.baseURL}/api/interactions/media/${contentId}/save`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ contentType }),
       });
 
+      // DEBUG: Log response details
+      console.log(`🔍 SAVE DEBUG: Response status: ${response.status}`);
+      console.log(`🔍 SAVE DEBUG: Response headers:`, response.headers);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`🔍 SAVE DEBUG: Error response body:`, errorText);
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
       }
 
       const data = await response.json();
+      console.log(`🔍 SAVE DEBUG: Success response:`, data);
+      
+      // Sync with library store - this will handle user-specific saves
+      await this.syncWithLibraryStore(contentId, data.saved);
+      
       return {
         saved: data.saved,
-        totalSaves: data.totalSaves,
+        totalSaves: data.totalSaves, // This comes from backend - total across all users
       };
     } catch (error) {
       console.error('Error toggling save:', error);
@@ -135,24 +186,121 @@ class ContentInteractionService {
     }
   }
 
-  // ============= SHARE INTERACTIONS =============
-  async recordShare(contentId: string, contentType: string, shareMethod: string = 'generic'): Promise<{ totalShares: number }> {
+  // Add method to get initial save state from backend
+  async getContentSaveState(contentId: string): Promise<{ saved: boolean; totalSaves: number }> {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseURL}/api/content/${contentId}/share`, {
+      
+      // DEBUG: Log the request details
+      console.log(`🔍 GET SAVE STATE: Making request to ${this.baseURL}/api/interactions/media/${contentId}/saved-status`);
+      console.log(`🔍 GET SAVE STATE: Headers:`, headers);
+      
+      const response = await fetch(`${this.baseURL}/api/interactions/media/${contentId}/saved-status`, {
+        headers,
+      });
+
+      // DEBUG: Log response details
+      console.log(`🔍 GET SAVE STATE: Response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`🔍 GET SAVE STATE: Error response body:`, errorText);
+        
+        // If it's a 500 error, use fallback
+        if (response.status === 500) {
+          return this.fallbackGetSaveState(contentId);
+        }
+        
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log(`🔍 GET SAVE STATE: Success response:`, data);
+      return {
+        saved: data.saved,
+        totalSaves: data.totalSaves || 0,
+      };
+    } catch (error) {
+      console.error('Error getting save state:', error);
+      return this.fallbackGetSaveState(contentId);
+    }
+  }
+
+  // Fallback method for getting save state when backend fails
+  private async fallbackGetSaveState(contentId: string): Promise<{ saved: boolean; totalSaves: number }> {
+    try {
+      const userId = await this.getCurrentUserId();
+      const key = `userSaves_${userId}`;
+      const savesStr = await AsyncStorage.getItem(key);
+      const saves = savesStr ? JSON.parse(savesStr) : {};
+      
+      const isSaved = saves[contentId] || false;
+      const totalSaves = Object.values(saves).filter(Boolean).length;
+      
+      console.log(`🔍 FALLBACK SAVE STATE: User ${userId}, content ${contentId}, saved: ${isSaved}, totalSaves: ${totalSaves}`);
+      
+      return {
+        saved: isSaved,
+        totalSaves: totalSaves,
+      };
+    } catch (error) {
+      console.error('Fallback get save state failed:', error);
+      return { saved: false, totalSaves: 0 };
+    }
+  }
+
+  // Synchronize save state with library store
+  private async syncWithLibraryStore(contentId: string, isSaved: boolean): Promise<void> {
+    try {
+      const { useLibraryStore } = await import('../store/useLibraryStore');
+      const libraryStore = useLibraryStore.getState();
+      
+      if (isSaved) {
+        // Item was saved but library store management is handled in components
+        // This ensures the API and library store stay in sync
+        console.log(`✅ Content ${contentId} saved - library sync handled by component`);
+      } else {
+        // Item was unsaved, remove from library store
+        await libraryStore.removeFromLibrary(contentId);
+        console.log(`🗑️ Content ${contentId} removed from library`);
+      }
+    } catch (error) {
+      console.error('Error syncing with library store:', error);
+    }
+  }
+
+  // ============= SHARE INTERACTIONS =============
+  async recordShare(contentId: string, contentType: string, shareMethod: string = 'generic', message?: string): Promise<{ totalShares: number }> {
+    try {
+      if (!this.isValidObjectId(contentId)) {
+        // No server call; just return 0 to avoid noise
+        return { totalShares: 0 };
+      }
+      const headers = await this.getAuthHeaders();
+      // Align with backend: expects { platform, message }
+      const response = await fetch(`${this.baseURL}/api/interactions/media/${contentId}/share`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ contentType, shareMethod }),
+        body: JSON.stringify({ platform: shareMethod, message: message || '' }),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      return {
-        totalShares: data.totalShares,
-      };
+      // Optionally fetch share stats for an updated count
+      try {
+        const statsRes = await fetch(`${this.baseURL}/api/interactions/media/${contentId}/share-stats`, {
+          headers,
+        });
+        if (statsRes.ok) {
+          const rawStats = await statsRes.json();
+          const statsData = (rawStats && rawStats.data) ? rawStats.data : rawStats;
+          const total = Number(statsData?.totalShares ?? statsData?.shares ?? 0);
+          return { totalShares: total };
+        }
+      } catch {}
+      return { totalShares: 0 };
     } catch (error) {
       console.error('Error recording share:', error);
       return { totalShares: 0 };
@@ -163,6 +311,7 @@ class ContentInteractionService {
   async recordView(contentId: string, contentType: string, duration?: number): Promise<{ totalViews: number }> {
     try {
       const headers = await this.getAuthHeaders();
+      // If you expose a views endpoint under interactions, update this path accordingly
       const response = await fetch(`${this.baseURL}/api/content/${contentId}/view`, {
         method: 'POST',
         headers,
@@ -186,18 +335,45 @@ class ContentInteractionService {
   // ============= COMMENT INTERACTIONS =============
   async addComment(contentId: string, comment: string, parentCommentId?: string): Promise<CommentData> {
     try {
+      if (!this.isValidObjectId(contentId)) {
+        throw new Error('Invalid content ID');
+      }
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseURL}/api/content/${contentId}/comment`, {
+      const response = await fetch(`${this.baseURL}/api/interactions/media/${contentId}/comment`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ comment, parentCommentId }),
+        // Backend expects { content, parentCommentId }
+        body: JSON.stringify({ content: comment, parentCommentId }),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const raw = await response.json();
+      const data = (raw && raw.data) ? raw.data : raw;
+      // Transform server comment → CommentData
+      const transformed: CommentData = {
+        id: String(data?._id || data?.id),
+        contentId: String(contentId),
+        userId: String(data?.userId || data?.authorId || ''),
+        username: String(data?.username || data?.user?.username || 'User'),
+        userAvatar: data?.userAvatar || data?.user?.avatarUrl,
+        comment: String(data?.content || ''),
+        timestamp: String(data?.createdAt || new Date().toISOString()),
+        likes: Number(data?.reactionsCount || data?.likes || 0),
+        replies: Array.isArray(data?.replies) ? data.replies.map((r: any) => ({
+          id: String(r?._id || r?.id),
+          contentId: String(contentId),
+          userId: String(r?.userId || r?.authorId || ''),
+          username: String(r?.username || r?.user?.username || 'User'),
+          userAvatar: r?.userAvatar || r?.user?.avatarUrl,
+          comment: String(r?.content || ''),
+          timestamp: String(r?.createdAt || new Date().toISOString()),
+          likes: Number(r?.reactionsCount || r?.likes || 0),
+        })) : [],
+      };
+      return transformed;
     } catch (error) {
       console.error('Error adding comment:', error);
       throw error;
@@ -206,9 +382,12 @@ class ContentInteractionService {
 
   async getComments(contentId: string, page: number = 1, limit: number = 20): Promise<{ comments: CommentData[]; totalComments: number; hasMore: boolean }> {
     try {
+      if (!this.isValidObjectId(contentId)) {
+        return { comments: [], totalComments: 0, hasMore: false };
+      }
       const headers = await this.getAuthHeaders();
       const response = await fetch(
-        `${this.baseURL}/api/content/${contentId}/comments?page=${page}&limit=${limit}`,
+        `${this.baseURL}/api/interactions/media/${contentId}/comments?page=${page}&limit=${limit}`,
         { headers }
       );
 
@@ -216,7 +395,22 @@ class ContentInteractionService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const raw = await response.json();
+      const payload = (raw && raw.data) ? raw.data : raw;
+      const serverComments: any[] = payload?.comments || payload?.items || payload?.data || [];
+      const total = Number(payload?.total || payload?.totalCount || serverComments.length || 0);
+      const hasMore = Boolean(payload?.hasMore || (page * limit < total));
+      const comments: CommentData[] = serverComments.map((c: any) => ({
+        id: String(c?._id || c?.id),
+        contentId: String(contentId),
+        userId: String(c?.userId || c?.authorId || ''),
+        username: String(c?.username || c?.user?.username || 'User'),
+        userAvatar: c?.userAvatar || c?.user?.avatarUrl,
+        comment: String(c?.content || c?.comment || ''),
+        timestamp: String(c?.createdAt || c?.timestamp || new Date().toISOString()),
+        likes: Number(c?.reactionsCount || c?.likes || 0),
+      }));
+      return { comments, totalComments: total, hasMore };
     } catch (error) {
       console.error('Error getting comments:', error);
       return { comments: [], totalComments: 0, hasMore: false };
@@ -225,17 +419,27 @@ class ContentInteractionService {
 
   async toggleCommentLike(commentId: string): Promise<{ liked: boolean; totalLikes: number }> {
     try {
+      if (!this.isValidObjectId(commentId)) {
+        return { liked: false, totalLikes: 0 };
+      }
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseURL}/api/comments/${commentId}/like`, {
+      // Use reaction endpoint with correct body shape
+      const response = await fetch(`${this.baseURL}/api/interactions/comments/${commentId}/reaction`, {
         method: 'POST',
         headers,
+        body: JSON.stringify({ reactionType: 'like' }),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const raw = await response.json();
+      const data = (raw && raw.data) ? raw.data : raw;
+      return {
+        liked: Boolean(data?.liked ?? true),
+        totalLikes: Number(data?.totalLikes ?? data?.reactionsCount ?? 0),
+      };
     } catch (error) {
       console.error('Error toggling comment like:', error);
       return { liked: false, totalLikes: 0 };
@@ -245,16 +449,25 @@ class ContentInteractionService {
   // ============= GET CONTENT STATS =============
   async getContentStats(contentId: string): Promise<ContentStats> {
     try {
+      // If ID is not a valid ObjectId, skip server call and use fallback
+      if (!this.isValidObjectId(contentId)) {
+        return this.fallbackGetStats(contentId);
+      }
+
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseURL}/api/content/${contentId}/stats`, {
         headers,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        return await response.json();
       }
 
-      return await response.json();
+      // Gracefully fallback on 404 or any non-OK
+      if (response.status === 404) {
+        console.warn(`⚠️ content stats 404 for ${contentId}. Falling back to local stats.`);
+      }
+      return this.fallbackGetStats(contentId);
     } catch (error) {
       console.error('Error getting content stats:', error);
       return this.fallbackGetStats(contentId);
@@ -264,18 +477,45 @@ class ContentInteractionService {
   // ============= BATCH OPERATIONS =============
   async getBatchContentStats(contentIds: string[]): Promise<Record<string, ContentStats>> {
     try {
+      // Filter to valid IDs only; if none, return empty to avoid server errors
+      const validIds = (contentIds || []).filter((id) => this.isValidObjectId(id));
+      if (validIds.length === 0) {
+        return {};
+      }
+
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseURL}/api/content/batch-stats`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ contentIds }),
+        body: JSON.stringify({ contentIds: validIds }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        return await response.json();
       }
 
-      return await response.json();
+      // If endpoint not found or other non-OK, gracefully fall back to per-id fetches
+      if (response.status === 404) {
+        console.warn('⚠️ batch-stats endpoint not found (404). Falling back to individual stats requests.');
+      } else {
+        console.warn(`⚠️ batch-stats request failed with status ${response.status}. Falling back.`);
+      }
+
+      const entries = await Promise.all(
+        validIds.map(async (id) => {
+          try {
+            const stats = await this.getContentStats(id);
+            return [id, stats] as [string, ContentStats];
+          } catch {
+            return [id, undefined] as unknown as [string, ContentStats];
+          }
+        })
+      );
+
+      return entries.reduce((acc, [id, stats]) => {
+        if (stats) acc[id] = stats;
+        return acc;
+      }, {} as Record<string, ContentStats>);
     } catch (error) {
       console.error('Error getting batch content stats:', error);
       return {};
@@ -375,12 +615,16 @@ class ContentInteractionService {
       const saves = savesStr ? JSON.parse(savesStr) : {};
       
       const isSaved = saves[contentId] || false;
-      saves[contentId] = !isSaved;
+      const newSavedState = !isSaved;
+      saves[contentId] = newSavedState;
       
       await AsyncStorage.setItem(key, JSON.stringify(saves));
       
+      // Sync with library store
+      await this.syncWithLibraryStore(contentId, newSavedState);
+      
       return {
-        saved: !isSaved,
+        saved: newSavedState,
         totalSaves: Object.values(saves).filter(Boolean).length,
       };
     } catch (error) {

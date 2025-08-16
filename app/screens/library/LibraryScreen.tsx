@@ -3,8 +3,10 @@
 
 
 // CommunityScreen.tsx
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import BottomNav from "../../components/BottomNav";
 
 
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +23,8 @@ const categories = ["ALL", "LIVE", "SERMON", "MUSIC", "E-BOOKS", "VIDEO"];
 export default function LibraryScreen() {
   const [selectedCategoryA, setSelectedCategorA] = useState("ALL");
   const [query, setQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("Library");
+  const router = useRouter();
 
   const renderContent = () => {
     switch (selectedCategoryA) {
@@ -42,8 +46,7 @@ export default function LibraryScreen() {
   };
 
   return (
-
-    <View className="flex-col bg-white">
+    <View className="flex-col bg-white flex-1">
 
       <Text className="mt-12 text-[24px] font-rubik-semibold ml-7 text-[#344054]">My Library</Text>
        <View className="flex-row items-center  mx-auto px-2 bg-[#E5E5EA] w-[360px] rounded-xl  h-[42px] mt-3">
@@ -98,6 +101,40 @@ export default function LibraryScreen() {
      <View className="flex-1 mb-24">{renderContent()}</View>
  
     </ScrollView>
+      {/* Bottom Nav overlay */}
+      <View
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          backgroundColor: "transparent",
+        }}
+      >
+        <BottomNav
+          selectedTab={activeTab}
+          setSelectedTab={(tab) => {
+            setActiveTab(tab);
+            switch (tab) {
+              case "Home":
+                router.replace({ pathname: "/categories/HomeScreen" });
+                break;
+              case "Community":
+                router.replace({ pathname: "/screens/CommunityScreen" });
+                break;
+              case "Library":
+                router.replace({ pathname: "/screens/library/LibraryScreen" });
+                break;
+              case "Account":
+                router.replace({ pathname: "/screens/AccountScreen" });
+                break;
+              default:
+                break;
+            }
+          }}
+        />
+      </View>
     </View>
     
   );

@@ -1,13 +1,14 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { ResizeMode, Video } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  FlatList,
-  Image,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    FlatList,
+    Image,
+    ScrollView,
+    Share,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGlobalVideoStore } from "../../store/useGlobalVideoStore";
@@ -71,6 +72,7 @@ export default function AllLibrary () {
   const libraryStore = useLibraryStore();
   const globalVideoStore = useGlobalVideoStore();
   const [savedItems, setSavedItems] = useState<any[]>([]);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   
   // Video playback state for videos in all library
   const [playingVideos, setPlayingVideos] = useState<Record<string, boolean>>({});
@@ -105,6 +107,21 @@ export default function AllLibrary () {
   const handleRemoveFromLibrary = async (item: any) => {
     await libraryStore.removeFromLibrary(item.id);
     console.log(`🗑️ Removed ${item.title} from library`);
+    setMenuOpenId(null);
+  };
+
+  const handleShare = async (item: any) => {
+    try {
+      await Share.share({
+        title: item.title,
+        message: `Check out this ${item.contentType}: ${item.title}\n${item.fileUrl || ''}`,
+        url: item.fileUrl || '',
+      });
+      setMenuOpenId(null);
+    } catch (error) {
+      console.warn("Share error:", error);
+      setMenuOpenId(null);
+    }
   };
 
   const togglePlay = (itemId: string) => {
@@ -219,16 +236,53 @@ export default function AllLibrary () {
           </View>
         )}
         
-        {/* Remove Button */}
+        {/* Ellipsis Menu Trigger */}
         <TouchableOpacity 
-          className="absolute bottom-2 right-2 bg-black/50 rounded-full p-1"
+          className="absolute bottom-2 right-2 bg-white rounded-full p-1"
           onPress={(e) => {
             if (isVideo) e.stopPropagation();
-            handleRemoveFromLibrary(item);
+            setMenuOpenId((prev) => (prev === item.id ? null : item.id));
           }}
         >
-          <Ionicons name="trash-outline" size={14} color="#FFFFFF" />
+          <Ionicons name="ellipsis-vertical" size={14} color="#3A3E50" />
         </TouchableOpacity>
+
+        {/* Ellipsis Menu */}
+        {menuOpenId === item.id && (
+          <>
+            <TouchableOpacity
+              className="absolute inset-0 z-40"
+              activeOpacity={1}
+              onPress={() => setMenuOpenId(null)}
+            />
+            <View className="absolute bottom-10 right-2 bg-white shadow-md rounded-lg p-3 z-50 w-[180px]">
+              <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between"
+                onPress={() => setMenuOpenId(null)}
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
+                <Ionicons name="eye-outline" size={20} color="#1D2939" />
+              </TouchableOpacity>
+              <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between"
+                onPress={() => handleShare(item)}
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">Share</Text>
+                <Feather name="send" size={20} color="#1D2939" />
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-row items-center justify-between mt-2"
+                onPress={() => handleRemoveFromLibrary(item)}
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">Remove from Library</Text>
+                <MaterialIcons name="bookmark" size={20} color="#1D2939" />
+              </TouchableOpacity>
+              <TouchableOpacity className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2"
+                onPress={() => setMenuOpenId(null)}
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
+                <Ionicons name="download-outline" size={20} color="#090E24" />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
         
         {/* Content type badge */}
         <View className="absolute top-2 right-2 bg-black/70 rounded-full p-1">

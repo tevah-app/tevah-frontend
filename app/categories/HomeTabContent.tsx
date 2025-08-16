@@ -3,6 +3,8 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 import { useLocalSearchParams } from "expo-router";
 import Header from "../components/Header";
+import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
+import { useMediaStore } from "../store/useUploadStore";
 import AllContent from "./Allcontent";
 import EbookComponent from "./EbookComponent";
 import LiveComponent from "./LiveComponent";
@@ -79,7 +81,20 @@ export default function HomeTabContent() {
           {categories.map((category) => (
             <TouchableOpacity
               key={category}
-              onPress={() => setSelectedCategory(category)}
+              onPress={() => {
+                // Stop any active audio and pause all videos when switching categories
+                try {
+                  useMediaStore.getState().stopAudioFn?.();
+                } catch (e) {
+                  // no-op
+                }
+                try {
+                  useGlobalVideoStore.getState().pauseAllVideos();
+                } catch (e) {
+                  // no-op
+                }
+                setSelectedCategory(category);
+              }}
               className={`px-3 py-1.5 mx-1 rounded-[10px] ${
                 selectedCategory === category
                   ? "bg-black"

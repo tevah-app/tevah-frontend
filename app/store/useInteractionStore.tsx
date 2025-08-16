@@ -253,6 +253,7 @@ export const useInteractionStore = create<InteractionState>()(
     },
 
     loadComments: async (contentId: string, page: number = 1) => {
+      if (!contentId) return;
       const key = `${contentId}_comments`;
       
       set((state) => ({
@@ -453,4 +454,5 @@ export const useCommentsLoading = (contentId: string) => {
   return useInteractionStore((state) => state.loadingComments[key] || false);
 };
 
+export default useInteractionStore;
 export default useInteractionStore;

@@ -3,18 +3,19 @@ import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Animated as RNAnimated,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Animated as RNAnimated,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View
 } from "react-native";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withTiming
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming
 } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import AuthHeader from "../components/AuthHeader";
@@ -36,6 +37,9 @@ export default function CodeVerification() {
   const emailAddress = params.emailAddress as string;
   const password = params.password as string;
 
+  // Refs to control focus across code inputs
+  const inputsRef = useRef<Array<TextInput | null>>([]);
+
   const FLOOR_Y = 280;
   const FINAL_REST_Y = 70;
 
@@ -54,8 +58,20 @@ export default function CodeVerification() {
   }));
 
   const handleCodeChange = (text: string, index: number) => {
-    if (text.length === 6 && /^[A-Za-z0-9]{6}$/.test(text)) {
-      setCodeArray(text.toUpperCase().split(''));
+    // If user pasted/auto-filled multiple characters starting at this index, distribute them
+    if (text.length > 1) {
+      const sanitized = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const newCode = [...codeArray];
+      let writeIndex = index;
+      for (let i = 0; i < sanitized.length && writeIndex < 6; i += 1) {
+        newCode[writeIndex] = sanitized[i];
+        writeIndex += 1;
+      }
+      setCodeArray(newCode);
+      // Focus the next empty input if available
+      if (writeIndex < 6) {
+        inputsRef.current[writeIndex]?.focus();
+      }
       return;
     }
 
@@ -65,16 +81,25 @@ export default function CodeVerification() {
     const newCode = [...codeArray];
     newCode[index] = char;
     setCodeArray(newCode);
+
+    // Auto-advance focus when a character is entered
+    if (char !== '' && index < 5) {
+      inputsRef.current[index + 1]?.focus();
+    }
   };
 
   const handleKeyPress = (key: string, index: number) => {
     if (key === 'Backspace') {
       const newCode = [...codeArray];
-      newCode[index] = '';
-
-      if (index === 5 && codeArray[5] === '') {
-        setCodeArray(['', '', '', '', '', '']);
+      if (newCode[index] === '') {
+        // Move focus back and clear previous if current is already empty
+        if (index > 0) {
+          newCode[index - 1] = '';
+          setCodeArray(newCode);
+          inputsRef.current[index - 1]?.focus();
+        }
       } else {
+        newCode[index] = '';
         setCodeArray(newCode);
       }
     }
@@ -214,7 +239,7 @@ export default function CodeVerification() {
     }
   };
 
-  const getInputStyle = () => ({
+  const getInputStyle = (): TextStyle => ({
     height: 40,
     width: 40,
     fontSize: 18,
@@ -227,17 +252,22 @@ export default function CodeVerification() {
     borderColor: '#9D9FA7',
     borderRadius: 9,
     backgroundColor: 'white',
-  });
+  } as TextStyle);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB', alignItems: 'center' }}>
-      <AuthHeader title="Code Verification" />
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center' }}>
+    
+
+      <View className="w-[370px] mt-6">
+        <AuthHeader title="Code Verification" />
+      </View>
 
       <RNAnimated.View
         style={{
           position: 'absolute',
           width: '100%',
           alignItems: 'center',
+          backgroundColor: '#F9FAFB',
           paddingHorizontal: 16,
           transform: [{ translateY: dropdownAnim }],
           zIndex: 10,
@@ -261,13 +291,17 @@ export default function CodeVerification() {
         {codeArray.map((char, i) => (
           <TextInput
             key={i}
+            ref={(el) => {
+              inputsRef.current[i] = el;
+            }}
             value={char}
             onChangeText={(text) => handleCodeChange(text, i)}
             onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
             keyboardType="default"
             autoCapitalize="characters"
-            maxLength={6}
             textContentType="oneTimeCode"
+            autoFocus={i === 0}
+            selectTextOnFocus
             style={getInputStyle()}
           />
         ))}
