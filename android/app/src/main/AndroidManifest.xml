@@ -27,7 +27,7 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="tevahapp1"/>
+        <data android:scheme="jevahapp"/>
       </intent-filter>
     </activity>
   </application>

@@ -1,26 +1,26 @@
 import {
-  AntDesign,
-  Feather,
-  Ionicons,
-  MaterialIcons
+    AntDesign,
+    Feather,
+    Ionicons,
+    MaterialIcons
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio, ResizeMode, Video } from "expo-av";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Dimensions,
-  Image,
-  ImageSourcePropType,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  PanResponder,
-  ScrollView,
-  Share,
-  Text,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Dimensions,
+    Image,
+    ImageSourcePropType,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
+    PanResponder,
+    ScrollView,
+    Share,
+    Text,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
 import { useInteractionStore } from "../store/useInteractionStore";
@@ -28,12 +28,12 @@ import { useLibraryStore } from "../store/useLibraryStore";
 import { useMediaStore } from "../store/useUploadStore";
 import contentInteractionAPI from "../utils/contentInteractionAPI";
 import {
-  getFavoriteState,
-  getPersistedStats,
-  getViewed,
-  persistStats,
-  persistViewed,
-  toggleFavorite,
+    getFavoriteState,
+    getPersistedStats,
+    getViewed,
+    persistStats,
+    persistViewed,
+    toggleFavorite,
 } from "../utils/persistentStorage";
 // import { testFavoriteSystem } from "../utils/testFavoriteSystem";
 // import { testPersistenceBehavior } from "../utils/testPersistence";
@@ -933,7 +933,7 @@ export default function VideoComponent() {
     });
 
     return (
-      <View key={modalKey} className="flex flex-col mb-10">
+      <View key={modalKey} className="flex flex-col mb-6">
         <TouchableWithoutFeedback onPress={handleVideoCardPress}>
           <View className="w-full h-[400px] overflow-hidden relative" onLayout={(e) => {
             const { y, height } = e.nativeEvent.layout;
@@ -1181,8 +1181,8 @@ export default function VideoComponent() {
     hasCompleted: Record<string, boolean>,
     setHasCompleted: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
   ) => (
-    <View className="mt-5">
-      <Text className="text-[16px] font-rubik-semibold text-[#344054] mt-4 mb-2 ml-2">
+    <View className="mb-6">
+      <Text className="text-[16px] mb-3 font-rubik-semibold text-[#344054] mt-4">
         {title}
       </Text>
       <ScrollView
@@ -1302,23 +1302,7 @@ export default function VideoComponent() {
                       </View>
                     </TouchableOpacity>
                     
-                    {/* 🔥 Trending Indicators - Top Right Corner */}
-                    {title === "Trending" && (
-                      <View className="absolute top-2 right-2 flex-col items-center">
-                        {item.isHot && (
-                          <View className="bg-red-500/90 px-2 py-1 rounded-full mb-1 flex-row items-center">
-                            <Text className="text-white text-[8px] font-rubik-bold mr-1">🔥</Text>
-                            <Text className="text-white text-[8px] font-rubik-bold">HOT</Text>
-                          </View>
-                        )}
-                        {item.isRising && (
-                          <View className="bg-green-500/90 px-2 py-1 rounded-full flex-row items-center">
-                            <Text className="text-white text-[8px] font-rubik-bold mr-1">📈</Text>
-                            <Text className="text-white text-[8px] font-rubik-bold">RISING</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
+
                     
                     <View className="absolute bottom-2 left-2 right-2">
                       <Text
@@ -1660,7 +1644,7 @@ export default function VideoComponent() {
       {uploadedVideos.length > 0 && (
         <>
           <Text className="text-[#344054] text-[16px] font-rubik-semibold my-4">
-            Recent
+            Most Recent
           </Text>
           {renderVideoCard(
             {
@@ -1701,7 +1685,7 @@ export default function VideoComponent() {
       )}
       {firstExploreVideos.length > 0 && (
         <>
-          <Text className="text-[#344054] text-[16px] font-rubik-semibold my-4">
+          <Text className="text-[#344054] text-[16px] font-rubik-semibold my-3">
             Explore More Videos
           </Text>
           <View className="gap-8">
@@ -1734,7 +1718,7 @@ export default function VideoComponent() {
       {/* 🔥 Trending Section with Enhanced Social Media Features */}
       {trendingItems.length > 0 ? (
         renderMiniCards(
-          `🔥 Trending Now • ${trendingItems.length} videos`,
+          `Trending Now • ${trendingItems.length} videos`,
           trendingItems,
           trendingModalIndex,
           setTrendingModalIndex,
@@ -1801,7 +1785,7 @@ export default function VideoComponent() {
       {/* 🎯 Enhanced Recommendation Sections */}
       {enhancedRecommendedForYou.length > 0 && (
         renderMiniCards(
-          `🎯 Recommended for You • ${enhancedRecommendedForYou.length} videos`,
+          `Recommended for You • ${enhancedRecommendedForYou.length} videos`,
           enhancedRecommendedForYou,
           recommendedModalIndex,
           setRecommendedModalIndex,

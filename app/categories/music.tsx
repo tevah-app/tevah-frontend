@@ -1419,7 +1419,7 @@ useEffect(() => {
         )}
           </View>
 
-          <View className="flex-row items-center justify-between mt-1 px-3">
+          <View className="flex-row items-center justify-between mt-1 px-3 mb-4">
           <View className="flex flex-row items-center">
             <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center relative ml-1 mt-2">
               <Image
@@ -1490,8 +1490,8 @@ useEffect(() => {
     modalIndex: number | null,
     setModalIndex: any
   ) => (
-    <View className="mt-5">
-      <Text className="text-[16px] font-rubik-semibold text-[#344054] mt-4 mb-2 ml-2">
+    <View className="mt-9 mb-3">
+      <Text className="text-[16px] font-rubik-semibold text-[#344054] mt-4 mb-3 ">
         {title}
       </Text>
       <ScrollView
@@ -1655,10 +1655,11 @@ useEffect(() => {
 
       {/* 3. First 4 Explore More Music */}
       {musicItems.length > 1 && (
-        <View className="mt-9 gap-12">
-          <Text className="text-[#344054] text-[16px] font-rubik-semibold mb-4 ml-2">
+        <>
+          <Text className="text-[#344054] text-[16px] font-rubik-semibold my-4">
             Explore More Music
           </Text>
+          <View className="gap-12">
           {musicItems.slice(1, 5).map((audio, index) => (
             <View key={`ExploreMoreFirst-${audio._id}-${index}`}>
               {renderAudioCard(
@@ -1690,13 +1691,14 @@ useEffect(() => {
               )}
             </View>
           ))}
-        </View>
+          </View>
+        </>
       )}
 
       {/* 4. Trending Now */}
       {trendingUiList.length > 0 && (
         renderMiniCards(
-          `Trending Now`,
+          `Trending Now • ${trendingUiList.length} Audio`,
           trendingUiList,
           rsModalIndex,
           setRsModalIndex
@@ -1705,10 +1707,11 @@ useEffect(() => {
 
       {/* 5. Second 4 Explore More Music */}
       {musicItems.length > 5 && (
-        <View className="mt-9 gap-12">
-          <Text className="text-[#344054] text-[16px] font-rubik-semibold mb-4 ml-2">
+        <>
+          <Text className="text-[#344054] text-[16px] font-rubik-semibold my-4">
             Explore More Music
           </Text>
+          <View className="gap-12">
           {musicItems.slice(5, 9).map((audio, index) => (
             <View key={`ExploreMoreSecond-${audio._id}-${index}`}>
               {renderAudioCard(
@@ -1740,13 +1743,14 @@ useEffect(() => {
               )}
             </View>
           ))}
-        </View>
+          </View>
+        </>
       )}
 
       {/* 6. Recommended For You */}
       {recommendedMusic.length > 0 && (
         renderMiniCards(
-          `Recommended for you`,
+          `Recommended for You • ${recommendedMusic.length} Audio`,
           recommendedMusic,
           recModalIndex,
           setRecModalIndex
@@ -1755,10 +1759,11 @@ useEffect(() => {
 
       {/* 7. Remaining Explore More Music */}
       {musicItems.length > 9 && (
-        <View className="mt-9 gap-12">
-          <Text className="text-[#344054] text-[16px] font-rubik-semibold mb-4 ml-2">
+        <>
+          <Text className="text-[#344054] text-[16px] font-rubik-semibold my-4">
             Explore More Music
           </Text>
+          <View className="gap-12">
           {musicItems.slice(9).map((audio, index) => (
             <View key={`ExploreMoreRest-${audio._id}-${index}`}>
               {renderAudioCard(
@@ -1790,8 +1795,12 @@ useEffect(() => {
               )}
             </View>
           ))}
-        </View>
+          </View>
+        </>
       )}
+
+      {/* Bottom spacing to ensure last card footer is fully visible */}
+      <View className="h-20" />
       {/* Comments disabled for now */}
     </ScrollView>
   );

@@ -173,15 +173,24 @@ export const useMediaStore = create<MediaState>((set, get) => ({
   },
 
   addMedia: (item: MediaItem) => {
-    const updatedList = [item, ...get().mediaList].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-    
-    set({ mediaList: updatedList });
-    
-    // 🚀 Persist immediately when media is added
-    persistMediaList(updatedList);
-    console.log(`✅ Added and persisted media: ${item.title}`);
+    try {
+      if (!item || !item.title) {
+        console.warn('⚠️ Attempted to add invalid media item:', item);
+        return;
+      }
+      
+      const updatedList = [item, ...get().mediaList].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      set({ mediaList: updatedList });
+      
+      // 🚀 Persist immediately when media is added
+      persistMediaList(updatedList);
+      console.log(`✅ Added and persisted media: ${item.title}`);
+    } catch (error) {
+      console.error('❌ Error adding media:', error);
+    }
   },
 
   // 🛡️ Enhanced function that validates user data before adding media

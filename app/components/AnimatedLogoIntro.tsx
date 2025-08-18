@@ -130,7 +130,14 @@ export default function AnimatedLogoIntro({
         }
       )
     );
-  }, [letterStaggerMs]);
+
+    // Cleanup function to cancel animations if component unmounts
+    return () => {
+      bgProgress.value = 0;
+      sunProgress.value = 0;
+      smileProgress.value = 0;
+    };
+  }, [letterStaggerMs, bgProgress, sunProgress, smileProgress]);
 
   // Sun drop animation (from above the word)
   const sunStyle = useAnimatedStyle(() => {

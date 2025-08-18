@@ -4,7 +4,7 @@ export default {
   expo: {
     name: 'Jevah App',
     slug: 'jevah-app',
-    version: '1.0.0',
+    version: '1.0.2',
     orientation: 'portrait',
     icon: './assets/images/icon.png',
     scheme: 'jevahapp',
@@ -14,7 +14,7 @@ export default {
       API_URL: process.env.EXPO_PUBLIC_API_URL,
       CLERK_KEY: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
       eas: {
-        projectId: 'dcbafd4e-7087-4d44-982f-481637a0b516',
+        projectId: '950f2be5-a0c8-4a40-ab5e-5922d7a04d17',
       },
     },
     ios: {
@@ -39,7 +39,12 @@ export default {
         'WRITE_EXTERNAL_STORAGE',
         'android.permission.READ_EXTERNAL_STORAGE',
         'android.permission.WRITE_EXTERNAL_STORAGE',
+        'INTERNET',
+        'ACCESS_NETWORK_STATE',
       ],
+      // Play Store specific configurations
+      allowBackup: true,
+      softwareKeyboardLayoutMode: 'pan',
     },
     web: {
       bundler: 'metro',
@@ -52,6 +57,15 @@ export default {
       'expo-font',
       'expo-asset',
       'expo-media-library',
+
+      [
+        "sentry-expo",
+        {
+            "url": "https://sentry.io/",
+          organization: "jevah-app", // from Sentry dashboard
+          project: "jevah-app",   // from Sentry dashboard
+        },
+      ],
     ],
     experiments: {
       typedRoutes: true,

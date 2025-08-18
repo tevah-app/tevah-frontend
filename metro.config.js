@@ -1,18 +1,23 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
+const {
+  getSentryExpoConfig
+} = require("@sentry/react-native/metro");
 
-const config = getDefaultConfig(__dirname);
+module.exports = (() => {
+  const config = getSentryExpoConfig(__dirname);
 
-// Enable SVGs to be imported as React components
-config.transformer = {
-  ...config.transformer,
-  babelTransformerPath: require.resolve("react-native-svg-transformer"),
-};
+  const { transformer, resolver } = config;
 
-config.resolver = {
-  ...config.resolver,
-  assetExts: config.resolver.assetExts.filter((ext) => ext !== "svg"),
-  sourceExts: [...config.resolver.sourceExts, "svg"],
-};
+  config.transformer = {
+    ...transformer,
+    babelTransformerPath: require.resolve("react-native-svg-transformer")
+  };
+  config.resolver = {
+    ...resolver,
+    assetExts: resolver.assetExts.filter((ext) => ext !== "svg"),
+    sourceExts: [...resolver.sourceExts, "svg"]
+  };
 
-module.exports = withNativeWind(config, { input: "./global.css" });
+  return withNativeWind(config, { input: "./global.css" });
+})();

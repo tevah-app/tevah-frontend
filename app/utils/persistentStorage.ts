@@ -74,7 +74,17 @@ export const persistMediaList = async (mediaList: any[]) => {
 export const getPersistedMediaList = async (): Promise<any[]> => {
   try {
     const stored = await AsyncStorage.getItem("globalMediaList");
-    const result = stored ? JSON.parse(stored) : [];
+    if (!stored) {
+      console.log("✅ No stored media list found, returning empty array");
+      return [];
+    }
+    
+    const result = JSON.parse(stored);
+    if (!Array.isArray(result)) {
+      console.warn("⚠️ Stored media list is not an array, returning empty array");
+      return [];
+    }
+    
     console.log(`✅ Global media list loaded successfully (${result.length} items)`);
     return result;
   } catch (err) {

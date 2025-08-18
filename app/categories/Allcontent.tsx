@@ -3,18 +3,18 @@ import { Audio, ResizeMode, Video } from "expo-av";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BackHandler,
-  Dimensions,
-  Image,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  PanResponder,
-  ScrollView,
-  Share,
-  Text,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    BackHandler,
+    Dimensions,
+    Image,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
+    PanResponder,
+    ScrollView,
+    Share,
+    Text,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 import useVideoViewport from "../hooks/useVideoViewport";
 import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
@@ -76,9 +76,37 @@ export default function AllContent() {
     [mediaList]
   );
 
-  // 🕘 Most Recent item (videos or music) to appear on top
+  // 📖 Sermon items (can be either audio or video)
+  const allSermons = useMemo(() => 
+    mediaList.filter((item) => item.contentType === "sermon"), 
+    [mediaList]
+  );
+
+  // 📚 Ebook items (PDF and EPUB files)
+  const allEbooks = useMemo(() => {
+    const ebooks = mediaList.filter((item) => item.contentType === "ebook" || item.contentType === "books");
+    console.log("📚 All ebooks found:", ebooks.length, ebooks.map(e => ({ title: e.title, contentType: e.contentType })));
+    return ebooks;
+  }, [mediaList]);
+
+  // Debug: Log all media items to help identify URL issues
+  useEffect(() => {
+    console.log("🔍 Debug: All media items loaded:", mediaList.length);
+    mediaList.forEach((item, index) => {
+      console.log(`📱 Item ${index + 1}:`, {
+        title: item.title,
+        contentType: item.contentType,
+        fileUrl: item.fileUrl,
+        imageUrl: item.imageUrl,
+        createdAt: item.createdAt,
+        _id: item._id
+      });
+    });
+  }, [mediaList]);
+
+  // 🕘 Most Recent item (videos, music, sermons, or ebooks) to appear on top
   const mostRecentItem = useMemo(() => {
-    const candidates = [...allVideos, ...allMusic];
+    const candidates = [...allVideos, ...allMusic, ...allSermons, ...allEbooks];
     if (candidates.length === 0) return null as MediaItem | null;
     const sorted = [...candidates].sort((a, b) => {
       const ad = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -86,7 +114,7 @@ export default function AllContent() {
       return bd - ad;
     });
     return sorted[0] || null;
-  }, [allVideos, allMusic]);
+  }, [allVideos, allMusic, allSermons, allEbooks]);
 
   const recentId = mostRecentItem?._id;
   const videosExcludingRecent = useMemo(() => 
@@ -97,6 +125,14 @@ export default function AllContent() {
     recentId ? allMusic.filter(m => m._id !== recentId) : allMusic,
     [allMusic, recentId]
   );
+  const sermonsExcludingRecent = useMemo(() => 
+    recentId ? allSermons.filter(s => s._id !== recentId) : allSermons,
+    [allSermons, recentId]
+  );
+  const ebooksExcludingRecent = useMemo(() => 
+    recentId ? allEbooks.filter(e => e._id !== recentId) : allEbooks,
+    [allEbooks, recentId]
+  );
 
   // 🎵 Audio playback state for Music items
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
@@ -106,6 +142,59 @@ export default function AllContent() {
   const [audioProgressMap, setAudioProgressMap] = useState<Record<string, number>>({}); // 0..1
   const [audioDurationMap, setAudioDurationMap] = useState<Record<string, number>>({});
   const [audioMuteMap, setAudioMuteMap] = useState<Record<string, boolean>>({});
+
+  // Use refs to access current state values without causing re-renders
+  const playingAudioIdRef = useRef<string | null>(null);
+  const soundMapRef = useRef<Record<string, Audio.Sound>>({});
+
+  // Track failed video loads for fallback to thumbnails
+  const [failedVideoLoads, setFailedVideoLoads] = useState<Set<string>>(new Set());
+
+  // Function to retry loading failed videos
+  const retryVideoLoad = (itemId: string) => {
+    setFailedVideoLoads(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(itemId);
+      return newSet;
+    });
+  };
+
+  // Update refs when state changes
+  useEffect(() => {
+    playingAudioIdRef.current = playingAudioId;
+  }, [playingAudioId]);
+
+  useEffect(() => {
+    soundMapRef.current = soundMap;
+  }, [soundMap]);
+
+  // 🛑 Stop audio when component loses focus (switching tabs/categories)
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // Stop all audio when leaving this component
+        const stopAllAudio = async () => {
+          try {
+            const currentPlayingId = playingAudioIdRef.current;
+            const currentSoundMap = soundMapRef.current;
+            
+            // Pause currently playing audio
+            if (currentPlayingId && currentSoundMap[currentPlayingId]) {
+              await currentSoundMap[currentPlayingId].pauseAsync();
+              const status = await currentSoundMap[currentPlayingId].getStatusAsync();
+              if (status.isLoaded) {
+                setPausedAudioMap((prev) => ({ ...prev, [currentPlayingId]: status.positionMillis ?? 0 }));
+              }
+            }
+            setPlayingAudioId(null);
+          } catch (error) {
+            console.log("Error stopping audio on focus loss:", error);
+          }
+        };
+        stopAllAudio();
+      };
+    }, []) // No dependencies to prevent unnecessary re-runs
+  );
 
   const playAudio = async (uri: string, id: string) => {
     if (!uri) return;
@@ -702,6 +791,7 @@ export default function AllContent() {
     const progress = progresses[modalKey] ?? 0;
     const key = getContentKey(video);
     const stats = contentStats[key] || {};
+    const isSermon = video.contentType === "sermon";
   
     return (
       <View 
@@ -812,6 +902,17 @@ export default function AllContent() {
                 </View>
               </View>
             )}
+
+            {/* Content Type Icon - Top Left */}
+            <View className="absolute top-4 left-4">
+              <View className="bg-black/50 p-1 rounded-full">
+                <Ionicons 
+                  name={isSermon ? "person" : "videocam"} 
+                  size={16} 
+                  color="#FFFFFF" 
+                />
+              </View>
+            </View>
             
             {/* Video Title - show when paused */}
             {!playingVideos[modalKey] && (
@@ -949,6 +1050,9 @@ export default function AllContent() {
       : { uri: audio.fileUrl };
     const isPlaying = playingAudioId === modalKey;
     const currentProgress = audioProgressMap[modalKey] || 0;
+    
+    // Add content type indicator for sermons
+    const isSermon = audio.contentType === "sermon";
 
     return (
       <View 
@@ -1006,6 +1110,17 @@ export default function AllContent() {
                   {stats.saved === 1 ? (audio.saved ?? 0) + 1 : audio.saved ?? 0}
                 </Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Content Type Icon - Top Left */}
+            <View className="absolute top-4 left-4">
+              <View className="bg-black/50 px-2 py-1 rounded-full flex-row items-center">
+                <Ionicons 
+                  name={isSermon ? "person" : "musical-notes"} 
+                  size={16} 
+                  color="#FFFFFF" 
+                />
+              </View>
             </View>
 
             {/* Bottom Controls: progress and mute, styled similar to video */}
@@ -1147,6 +1262,416 @@ export default function AllContent() {
     );
   };
 
+  // 📖 Render sermon card (can be either audio or video)
+  const renderSermonCard = (sermon: MediaItem, index: number) => {
+    const modalKey = `sermon-${sermon._id || index}`;
+    const key = getContentKey(sermon);
+    const stats = contentStats[key] || {};
+    const isVideo = sermon.fileUrl.includes(".mp4") || sermon.fileUrl.includes(".mov");
+    const thumbnailSource = sermon?.imageUrl
+      ? (typeof sermon.imageUrl === "string" ? { uri: sermon.imageUrl } : (sermon.imageUrl as any))
+      : { uri: sermon.fileUrl };
+    
+    // If it's a video sermon, render as video card
+    if (isVideo) {
+      return renderVideoCard(sermon, index);
+    }
+    
+    // If it's an audio sermon, render as music card
+    return renderMusicCard(sermon, index);
+  };
+
+  // 📚 Render ebook card (PDF/EPUB files without play icons)
+  const renderEbookCard = (ebook: MediaItem, index: number) => {
+    const modalKey = `ebook-${ebook._id || index}`;
+    const key = getContentKey(ebook);
+    const stats = contentStats[key] || {};
+    const thumbnailSource = ebook?.imageUrl
+      ? (typeof ebook.imageUrl === "string" ? { uri: ebook.imageUrl } : (ebook.imageUrl as any))
+      : require("../../assets/images/bilble.png"); // Use bible image as PDF placeholder
+    
+    return (
+      <View key={modalKey} className="mb-6">
+        <TouchableWithoutFeedback onPress={() => console.log("Open ebook:", ebook.title)}>
+          <View className="w-full h-[400px] overflow-hidden relative">
+            <Image
+              source={thumbnailSource}
+              className="w-full h-full absolute"
+              resizeMode="cover"
+            />
+            
+            {/* PDF overlay to make it look more like a document */}
+            <View className="absolute inset-0 bg-black bg-opacity-20" />
+            
+            {/* Large PDF icon overlay */}
+            <View className="absolute inset-0 justify-center items-center">
+              <View className="bg-white bg-opacity-90 rounded-lg p-4">
+                <Ionicons 
+                  name="document-text" 
+                  size={48} 
+                  color="#1D2939" 
+                />
+                <Text className="text-[#1D2939] font-rubik-semibold text-center mt-2">
+                  PDF Document
+                </Text>
+              </View>
+            </View>
+
+            {/* Right side icons - matching video layout */}
+            <View className="flex-col absolute mt-[170px] ml-[360px]">
+              <TouchableOpacity onPress={() => handleFavorite(key, ebook)} className="flex-col justify-center items-center">
+                <MaterialIcons
+                  name={userFavorites[key] ? "favorite" : "favorite-border"}
+                  size={30}
+                  color={userFavorites[key] ? "#D22A2A" : "#FFFFFF"}
+                />
+                <Text className="text-[10px] text-white font-rubik-semibold">
+                  {globalFavoriteCounts[key] || 0}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-col justify-center items-center mt-6">
+                <Ionicons name="chatbubble-sharp" size={30} color="white" />
+                <Text className="text-[10px] text-white font-rubik-semibold">
+                  {stats.comment === 1 ? (ebook.comment ?? 0) + 1 : ebook.comment ?? 0}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleSave(key, ebook)} className="flex-col justify-center items-center mt-6">
+                <MaterialIcons
+                  name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
+                  size={30}
+                  color={stats.saved === 1 ? "#FEA74E" : "#FFFFFF"}
+                />
+                <Text className="text-[10px] text-white font-rubik-semibold">
+                  {stats.saved === 1 ? (ebook.saved ?? 0) + 1 : ebook.saved ?? 0}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Content Type Icon - Top Left */}
+            <View className="absolute top-4 left-4">
+              <View className="bg-black/50 p-1 rounded-full">
+                <Ionicons 
+                  name="document-text-outline" 
+                  size={16} 
+                  color="#FFFFFF" 
+                />
+              </View>
+            </View>
+            
+            {/* Ebook Title - always visible */}
+            <View className="absolute bottom-9 left-3 right-3 px-4 py-2 rounded-md">
+              <Text className="text-white font-semibold text-[14px]" numberOfLines={2}>
+                {ebook.title}
+              </Text>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+        
+        {/* Footer - matching video layout exactly */}
+        <View className="flex-row items-center justify-between mt-1 px-3">
+          <View className="flex flex-row items-center">
+            <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center relative ml-1 mt-2">
+              <Image
+                source={
+                  typeof ebook.speakerAvatar === "string" && ebook.speakerAvatar.startsWith("http")
+                    ? { uri: ebook.speakerAvatar.trim() }
+                    : typeof ebook.speakerAvatar === "object" && ebook.speakerAvatar
+                    ? ebook.speakerAvatar
+                    : require("../../assets/images/Avatar-1.png")
+                }
+                style={{ width: 30, height: 30, borderRadius: 999 }}
+                resizeMode="cover"
+              />
+            </View>
+            <View className="ml-3">
+              <View className="flex-row items-center">
+                <Text className="ml-1 text-[13px] font-rubik-semibold text-[#344054] mt-1">
+                  {getDisplayName(ebook.speaker, ebook.uploadedBy)}
+                </Text>
+                <View className="flex flex-row mt-2 ml-2">
+                  <Ionicons name="time-outline" size={14} color="#9CA3AF" />
+                  <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
+                    {getTimeAgo(ebook.createdAt)}
+                  </Text>
+                </View>
+              </View>
+              <View className="flex-row mt-2">
+                <View className="flex-row items-center">
+                  <AntDesign name="eyeo" size={24} color="#98A2B3" />
+                  <Text className="text-[10px] text-gray-500 ml-1 mt-1 font-rubik">
+                    {stats.views ?? ebook.views ?? 0}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => handleShare(key, ebook)} className="flex-row items-center ml-4">
+                  <Feather name="send" size={24} color="#98A2B3" />
+                  <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
+                    {stats.sheared ?? ebook.sheared ?? 0}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => setModalVisible(modalVisible === modalKey ? null : modalKey)}
+            className="mr-2"
+          >
+            <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Modal - matching video layout */}
+        {modalVisible === modalKey && (
+          <>
+            <TouchableWithoutFeedback onPress={() => setModalVisible(null)}>
+              <View className="absolute inset-0 z-40" />
+            </TouchableWithoutFeedback>
+            <View className="absolute bottom-24 right-16 bg-white shadow-md rounded-lg p-3 z-50 w-[170px] h-[140]">
+              <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
+                <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
+                <Ionicons name="eye-outline" size={22} color="#1D2939" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleShare(modalKey, ebook)}
+                className="py-2 border-b border-gray-200 flex-row items-center justify-between"
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">Share</Text>
+                <Feather name="send" size={22} color="#1D2939" />
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-row items-center justify-between mt-6" onPress={() => handleSave(modalKey, ebook)}>
+                <Text className="text-[#1D2939] font-rubik ml-2">{stats.saved === 1 ? "Remove from Library" : "Save to Library"}</Text>
+                <MaterialIcons
+                  name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
+                  size={22}
+                  color="#1D2939"
+                />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </View>
+    );
+  };
+
+  // 📱 Render mini cards for horizontal scrolling sections
+  const renderMiniCards = (
+    title: string,
+    items: MediaItem[],
+    modalIndex: number | null,
+    setModalIndex: (val: number | null) => void
+  ) => (
+    <View className="mb-6">
+      <Text className="text-[16px] mb-3 font-rubik-semibold text-[#344054] mt-4 px-4">
+        {title}
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 12 }}
+      >
+        {items.map((item, index) => {
+          const modalKey = `mini-${item._id || index}`;
+          const key = getContentKey(item);
+          const stats = contentStats[key] || {};
+          
+          // Determine thumbnail source based on content type
+          const thumbnailSource = item?.imageUrl
+            ? (typeof item.imageUrl === "string" ? { uri: item.imageUrl } : (item.imageUrl as any))
+            : item.contentType === "ebook" || item.contentType === "books"
+            ? require("../../assets/images/bilble.png")
+            : require("../../assets/images/image (12).png");
+
+          return (
+            <View key={modalKey} className="mr-4 w-[154px] flex-col items-center">
+              <TouchableOpacity
+                onPress={() => {
+                  if (item.contentType === "videos") {
+                    handleVideoTap(`mini-${item._id || index}`, item, index);
+                  } else if (item.contentType === "music") {
+                    const id = getAudioKey(item.fileUrl);
+                    playAudio(item.fileUrl, id, {
+                      title: item.title,
+                      subTitle: item.speaker || item.uploadedBy,
+                      imageUrl: item.imageUrl,
+                      audioUrl: item.fileUrl,
+                      views: item.viewCount || 0,
+                    });
+                  } else if (item.contentType === "sermon") {
+                    // Handle sermon based on whether it's video or audio
+                    const isVideo = item.fileUrl.includes(".mp4") || item.fileUrl.includes(".mov");
+                    if (isVideo) {
+                      handleVideoTap(`mini-${item._id || index}`, item, index);
+                    } else {
+                      const id = getAudioKey(item.fileUrl);
+                      playAudio(item.fileUrl, id, {
+                        title: item.title,
+                        subTitle: item.speaker || item.uploadedBy,
+                        imageUrl: item.imageUrl,
+                        audioUrl: item.fileUrl,
+                        views: item.viewCount || 0,
+                      });
+                    }
+                  } else {
+                    console.log("Open mini card:", item.title);
+                  }
+                }}
+                className="w-full h-[232px] rounded-2xl overflow-hidden relative"
+                activeOpacity={0.9}
+              >
+                {(item.contentType === "videos" || (item.contentType === "sermon" && (item.fileUrl.includes(".mp4") || item.fileUrl.includes(".mov")))) && !failedVideoLoads.has(item._id || item.fileUrl) ? (
+                  <Video
+                    source={{ uri: item.fileUrl }}
+                    style={{ width: "100%", height: "100%", position: "absolute" }}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay={false}
+                    isMuted={true}
+                    useNativeControls={false}
+                    onError={(error) => {
+                      console.log(`❌ Video loading error for ${item.title}:`, error);
+                      console.log(`🔗 Failed URL: ${item.fileUrl}`);
+                      // Add to failed loads set to show thumbnail instead
+                      setFailedVideoLoads(prev => new Set([...prev, item._id || item.fileUrl]));
+                    }}
+                    onLoadStart={() => {
+                      console.log(`🔄 Loading video: ${item.title} from ${item.fileUrl}`);
+                    }}
+                    onLoad={() => {
+                      console.log(`✅ Video loaded successfully: ${item.title}`);
+                    }}
+                  />
+                ) : (
+                  <Image
+                    source={thumbnailSource}
+                    className="w-full h-full absolute"
+                    resizeMode="cover"
+                    onError={(error) => {
+                      console.log(`❌ Image loading error for ${item.title}:`, error);
+                    }}
+                  />
+                )}
+                
+                {/* Content type indicator */}
+                <View className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1">
+                  <Ionicons 
+                    name={
+                      item.contentType === "videos" ? "videocam" :
+                      item.contentType === "music" ? "musical-notes" :
+                      item.contentType === "sermon" ? "person" :
+                      "document-text-outline"
+                    }
+                    size={16} 
+                    color="#FFFFFF" 
+                  />
+                </View>
+
+                {/* Play button overlay for videos and music */}
+                {(item.contentType === "videos" || item.contentType === "music") && !failedVideoLoads.has(item._id || item.fileUrl) && (
+                  <View className="absolute inset-0 justify-center items-center">
+                    <View className="bg-white/70 p-2 rounded-full">
+                      <Ionicons 
+                        name="play" 
+                        size={24} 
+                        color={item.contentType === "videos" ? "#FEA74E" : "#6663FD"} 
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Retry button for failed video loads */}
+                {failedVideoLoads.has(item._id || item.fileUrl) && (
+                  <View className="absolute inset-0 justify-center items-center">
+                    <TouchableOpacity 
+                      onPress={() => retryVideoLoad(item._id || item.fileUrl)}
+                      className="bg-red-500/80 p-2 rounded-full"
+                    >
+                      <Ionicons name="refresh" size={24} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                
+                {/* Gradient overlay for better text readability */}
+                <View className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
+                
+                <View className="absolute bottom-2 left-2 right-2">
+                  <Text
+                    className="text-white text-start text-[14px] font-rubik-semibold"
+                    numberOfLines={2}
+                  >
+                    {item.title}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              
+              {/* Modal for mini card actions */}
+              {modalIndex === index && (
+                <>
+                  <TouchableWithoutFeedback onPress={() => setModalIndex(null)}>
+                    <View className="absolute inset-0 z-40" />
+                  </TouchableWithoutFeedback>
+                  <View className="absolute bottom-14 right-3 bg-white shadow-lg rounded-lg p-3 z-50 w-[160px] h-[180px] border border-gray-100">
+                    <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
+                      <Text className="text-[#1D2939] font-rubik-medium ml-2">View Details</Text>
+                      <Ionicons name="eye-outline" size={22} color="#1D2939" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleShare(key, item)}
+                      className="py-2 border-b border-gray-200 flex-row items-center justify-between"
+                    >
+                      <Text className="text-[#1D2939] font-rubik-medium ml-2">Share</Text>
+                      <Feather name="send" size={22} color="#1D2939" />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      className="flex-row items-center justify-between mt-6" 
+                      onPress={() => handleSave(key, item)}
+                    >
+                      <Text className="text-[#1D2939] font-rubik-medium ml-2">
+                        {stats.saved === 1 ? "Remove from Library" : "Save to Library"}
+                      </Text>
+                      <MaterialIcons
+                        name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
+                        size={22}
+                        color="#1D2939"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+              
+              <View className="mt-2 flex flex-col w-full">
+                <View className="flex flex-row justify-between items-center">
+                  <Text
+                    className="text-[12px] text-[#98A2B3] font-rubik-medium flex-1"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {getDisplayName(item.speaker, item.uploadedBy)}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setModalIndex(modalIndex === index ? null : index)}
+                    className="ml-2"
+                  >
+                    <Ionicons name="ellipsis-vertical" size={14} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </View>
+                <View className="flex-row items-center mt-1">
+                  <AntDesign name="eyeo" size={16} color="#98A2B3" />
+                  <Text className="text-[10px] text-[#98A2B3] ml-2 font-rubik">
+                    {stats.views ?? item.views ?? 0} views
+                  </Text>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+
+  // State for mini card modals
+  const [previouslyViewedModalIndex, setPreviouslyViewedModalIndex] = useState<number | null>(null);
+  const [trendingModalIndex, setTrendingModalIndex] = useState<number | null>(null);
+  const [recommendedModalIndex, setRecommendedModalIndex] = useState<number | null>(null);
+
   return (
     <ScrollView 
       ref={scrollViewRef}
@@ -1163,30 +1688,167 @@ export default function AllContent() {
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={true}
     >
-      {/* 🆕 Recent Section */}
+      {/* 🆕 Most Recent Section */}
       {mostRecentItem && (
         <View>
-          <Text className="text-[16px] font-rubik-semibold px-4 mt-5 mb-3">Recent</Text>
+          <Text className="text-[16px] font-rubik-semibold px-4 mt-5 mb-3">Most Recent</Text>
           {mostRecentItem.contentType === 'videos'
             ? renderVideoCard(mostRecentItem as any, 0)
-            : renderMusicCard(mostRecentItem as any, 0)}
+            : mostRecentItem.contentType === 'ebook' || mostRecentItem.contentType === 'books'
+            ? renderEbookCard(mostRecentItem as any, 0)
+            : renderSermonCard(mostRecentItem as any, 0)}
         </View>
       )}
-      {/* 🔥 Videos Section with Full Layout */}
-      {videosExcludingRecent.length > 0 && (
-        <>
-          {/* <Text className="text-[18px] font-bold px-4 mt-5 mb-3">🎥 Videos</Text> */}
-          {videosExcludingRecent.map((video, index) => renderVideoCard(video, index))}
-        </>
-      )}
 
-      {/* 🎵 Music Section with thumbnails */}
-      {musicExcludingRecent.length > 0 && (
-        <>
-          {/* <Text className="text-[18px] font-bold px-4 mt-5 mb-3">🎵 Music</Text> */}
-          {musicExcludingRecent.map((audio, index) => renderMusicCard(audio, index))}
-        </>
-      )}
+      {/* 🎯 Previously Viewed Mini Cards */}
+      {(() => {
+        const previouslyViewedItems = [
+          ...allVideos.slice(0, 2),
+          ...allMusic.slice(0, 1),
+          ...allSermons.slice(0, 1)
+        ].slice(0, 4);
+        
+        return previouslyViewedItems.length > 0 ? renderMiniCards(
+          "Previously Viewed",
+          previouslyViewedItems,
+          previouslyViewedModalIndex,
+          setPreviouslyViewedModalIndex
+        ) : null;
+      })()}
+
+      {/* 🔥 First Explore More Section (4 items) */}
+      <View className="mt-5">
+        <Text className="text-[16px] font-rubik-semibold px-4 mb-3">Explore More</Text>
+        
+        {/* Videos */}
+        {videosExcludingRecent.length > 0 && (
+          <>
+            {videosExcludingRecent.slice(0, 2).map((video, index) => renderVideoCard(video, index))}
+          </>
+        )}
+
+        {/* Music */}
+        {musicExcludingRecent.length > 0 && (
+          <>
+            {musicExcludingRecent.slice(0, 1).map((audio, index) => renderMusicCard(audio, index))}
+          </>
+        )}
+
+        {/* Sermons */}
+        {sermonsExcludingRecent.length > 0 && (
+          <>
+            {sermonsExcludingRecent.slice(0, 1).map((sermon, index) => renderSermonCard(sermon, index))}
+          </>
+        )}
+      </View>
+
+      {/* 📈 Trending Mini Cards */}
+      {(() => {
+        const trendingItems = [
+          ...allVideos.slice(2, 4),
+          ...allMusic.slice(1, 2),
+          ...allSermons.slice(1, 2),
+          ...allEbooks.slice(0, 2)
+        ].slice(0, 4).map(item => ({
+          ...item,
+          isHot: Math.random() > 0.7,
+          isRising: Math.random() > 0.8,
+          trendingScore: Math.floor(Math.random() * 1000) + 100
+        }));
+        
+        return trendingItems.length > 0 ? renderMiniCards(
+          "Trending",
+          trendingItems,
+          trendingModalIndex,
+          setTrendingModalIndex
+        ) : null;
+      })()}
+
+      {/* 🔥 Second Explore More Section (4 items) */}
+      <View className="mt-5">
+        <Text className="text-[16px] font-rubik-semibold px-4 mb-3">Explore More</Text>
+        
+        {/* Videos */}
+        {videosExcludingRecent.slice(2, 4).length > 0 && (
+          <>
+            {videosExcludingRecent.slice(2, 4).map((video, index) => renderVideoCard(video, index + 2))}
+          </>
+        )}
+
+        {/* Music */}
+        {musicExcludingRecent.slice(1, 2).length > 0 && (
+          <>
+            {musicExcludingRecent.slice(1, 2).map((audio, index) => renderMusicCard(audio, index + 1))}
+          </>
+        )}
+
+        {/* Sermons */}
+        {sermonsExcludingRecent.slice(1, 2).length > 0 && (
+          <>
+            {sermonsExcludingRecent.slice(1, 2).map((sermon, index) => renderSermonCard(sermon, index + 1))}
+          </>
+        )}
+
+        {/* Ebooks */}
+        {allEbooks.slice(0, 2).length > 0 && (
+          <>
+            {allEbooks.slice(0, 2).map((ebook, index) => renderEbookCard(ebook, index))}
+          </>
+        )}
+      </View>
+
+      {/* 🎯 Recommended for You Mini Cards */}
+      {(() => {
+        const recommendedItems = [
+          ...allVideos.slice(4, 6),
+          ...allMusic.slice(2, 3),
+          ...allSermons.slice(2, 3),
+          ...allEbooks.slice(2, 4)
+        ].slice(0, 4).map(item => ({
+          ...item,
+          personalScore: Math.floor(Math.random() * 500) + 50
+        }));
+        
+        return recommendedItems.length > 0 ? renderMiniCards(
+          "Recommended for You",
+          recommendedItems,
+          recommendedModalIndex,
+          setRecommendedModalIndex
+        ) : null;
+      })()}
+
+      {/* 🔥 Remaining Explore More Section */}
+      <View className="mt-5">
+        <Text className="text-[16px] font-rubik-semibold px-4 mb-3">Explore More</Text>
+        
+        {/* Remaining Videos */}
+        {videosExcludingRecent.slice(4).length > 0 && (
+          <>
+            {videosExcludingRecent.slice(4).map((video, index) => renderVideoCard(video, index + 4))}
+          </>
+        )}
+
+        {/* Remaining Music */}
+        {musicExcludingRecent.slice(2).length > 0 && (
+          <>
+            {musicExcludingRecent.slice(2).map((audio, index) => renderMusicCard(audio, index + 2))}
+          </>
+        )}
+
+        {/* Remaining Sermons */}
+        {sermonsExcludingRecent.slice(2).length > 0 && (
+          <>
+            {sermonsExcludingRecent.slice(2).map((sermon, index) => renderSermonCard(sermon, index + 2))}
+          </>
+        )}
+
+        {/* Remaining Ebooks */}
+        {allEbooks.slice(4).length > 0 && (
+          <>
+            {allEbooks.slice(4).map((ebook, index) => renderEbookCard(ebook, index + 4))}
+          </>
+        )}
+      </View>
 
       {mediaList.length === 0 && (
         <Text className="text-center text-gray-500 mt-10">No content uploaded yet.</Text>

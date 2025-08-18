@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.17.4",
+    "version": ">= 5.9.3",
     "appVersionSource": "remote"
   },
   "build": {
@@ -11,13 +11,75 @@
     "preview": {
       "distribution": "internal"
     },
+    "debug": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://jevahapp-backend.onrender.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZWxlZ2FudC10aWdlci0zNi5jbGVyay5hY2NvdW50cy5kZXYk"
+      }
+    },
+    "test": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://jevahapp-backend.onrender.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZWxlZ2FudC10aWdlci0zNi5jbGVyay5hY2NvdW50cy5kZXYk"
+      }
+    },
+    "ios-test": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://jevahapp-backend.onrender.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZWxlZ2FudC10aWdlci0zNi5jbGVyay5hY2NvdW50cy5kZXYk"
+      }
+    },
+    "ios-device": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://jevahapp-backend.onrender.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZWxlZ2FudC10aWdlci0zNi5jbGVyay5hY2NvdW50cy5kZXYk"
+      }
+    },
+    "testflight": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://jevahapp-backend.onrender.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZWxlZ2FudC10aWdlci0zNi5jbGVyay5hY2NvdW50cy5kZXYk"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://jevahapp-backend.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://jevahapp-backend.onrender.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZWxlZ2FudC10aWdlci0zNi5jbGVyay5hY2NvdW50cy5kZXYk"
+      }
+    },
+    "playstore": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://jevahapp-backend.onrender.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZWxlZ2FudC10aWdlci0zNi5jbGVyay5hY2NvdW50cy5kZXYk"
       }
     }
   },

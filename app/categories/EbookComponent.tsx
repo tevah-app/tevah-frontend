@@ -9,212 +9,93 @@ import React, { useCallback, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { useMediaStore } from "../store/useUploadStore";
 
-interface VideoCard {
-  imageUrl: any;
+interface EbookItem {
+  _id?: string;
   title: string;
-  speaker: string;
-  timeAgo: string;
-  speakerAvatar: any;
-  favorite: number;
-  views: number;
-  saved: number;
-  sheared: number;
+  description?: string;
+  speaker?: string;
+  uploadedBy?: string;
+  createdAt: string;
+  timeAgo?: string;
+  speakerAvatar?: any;
+  views?: number;
+  favorite?: number;
+  saved?: number;
+  sheared?: number;
+  imageUrl?: any;
+  fileUrl?: string;
   onPress?: () => void;
 }
-
-interface RecommendedItem {
-  title: string;
-  imageUrl: any;
-  subTitle: string;
-  views: number;
-  onPress?: () => void;
-}
-
-const Videos: VideoCard[] = [
-  {
-    imageUrl: require("../../assets/images/image (12).png"),
-    title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-    speaker: "Minister Joseph Eluwa",
-    timeAgo: "3HRS AGO",
-    speakerAvatar: require("../../assets/images/Avatar-1.png"),
-    views: 500,
-    favorite: 600,
-    saved: 400,
-    sheared: 540,
-  },
-];
-
-const videosA: VideoCard[] = [
-  {
-    imageUrl: require("../../assets/images/image (14).png"),
-    title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-    speaker: "Minister Joseph Eluwa",
-    timeAgo: "3HRS AGO",
-    speakerAvatar: require("../../assets/images/Avatar-1.png"),
-    views: 500,
-    favorite: 600,
-    saved: 400,
-    sheared: 540,
-  },
-  {
-    imageUrl: require("../../assets/images/image (15).png"),
-    title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-    speaker: "Minister Joseph Eluwa",
-    timeAgo: "3HRS AGO",
-    speakerAvatar: require("../../assets/images/Avatar-1.png"),
-    views: 500,
-    favorite: 600,
-    saved: 400,
-    sheared: 540,
-  },
-  {
-    imageUrl: require("../../assets/images/image (16).png"),
-    title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-    speaker: "Minister Joseph Eluwa",
-    timeAgo: "3HRS AGO",
-    speakerAvatar: require("../../assets/images/Avatar-1.png"),
-    views: 500,
-    favorite: 600,
-    saved: 400,
-    sheared: 540,
-  },
-  {
-    imageUrl: require("../../assets/images/image (17).png"),
-    title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-    speaker: "Minister Joseph Eluwa",
-    timeAgo: "3HRS AGO",
-    speakerAvatar: require("../../assets/images/Avatar-1.png"),
-    views: 500,
-    favorite: 600,
-    saved: 400,
-    sheared: 540,
-  },
-];
-
-const videosB: VideoCard[] = [
-  {
-    imageUrl: require("../../assets/images/image (14).png"),
-    title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-    speaker: "Minister Joseph Eluwa",
-    timeAgo: "3HRS AGO",
-    speakerAvatar: require("../../assets/images/Avatar-1.png"),
-    views: 500,
-    favorite: 600,
-    saved: 400,
-    sheared: 540,
-  },
-  {
-    imageUrl: require("../../assets/images/image (15).png"),
-    title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-    speaker: "Minister Joseph Eluwa",
-    timeAgo: "3HRS AGO",
-    speakerAvatar: require("../../assets/images/Avatar-1.png"),
-    views: 500,
-    favorite: 600,
-    saved: 400,
-    sheared: 540,
-  },
-  {
-    imageUrl: require("../../assets/images/image (16).png"),
-    title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-    speaker: "Minister Joseph Eluwa",
-    timeAgo: "3HRS AGO",
-    speakerAvatar: require("../../assets/images/Avatar-1.png"),
-    views: 500,
-    favorite: 600,
-    saved: 400,
-    sheared: 540,
-  },
-  {
-    imageUrl: require("../../assets/images/image (17).png"),
-    title: "2 Hours time with God with Dunsin Oyekan & Pastor Godman Akinlabi",
-    speaker: "Minister Joseph Eluwa",
-    timeAgo: "3HRS AGO",
-    speakerAvatar: require("../../assets/images/Avatar-1.png"),
-    views: 500,
-    favorite: 600,
-    saved: 400,
-    sheared: 540,
-  },
-];
-
-const previouslyViewed: RecommendedItem[] = [
-  {
-    title: "The Beatitudes: The Path to Blessings",
-    imageUrl: require("../../assets/images/image12a.png"),
-    subTitle: "The Gospel of Lord by Andrew Farlay",
-    views: 100,
-    onPress: () => console.log("Viewing The Chosen"),
-  },
-  {
-    title: "The Beatitudes: The Path to Blessings",
-    imageUrl: require("../../assets/images/image (13).png"),
-    subTitle: "The Gospel of Lord by Andrew Farlay",
-    views: 150,
-    onPress: () => console.log("Viewing Overflow Worship"),
-  },
-  {
-    title: "Revival Nights",
-    imageUrl: require("../../assets/images/image (13).png"),
-    subTitle: "The Gospel of Lord by Andrew Farlay",
-    views: 300,
-    onPress: () => console.log("Viewing Revival Nights"),
-  },
-];
-const recommendedItems: RecommendedItem[] = [
-  {
-    title: "The Beatitudes: The Path to Blessings",
-    imageUrl: require("../../assets/images/image (6).png"),
-    subTitle: "The Gospel of Lord by Andrew Farlay",
-    views: 100,
-    onPress: () => console.log("Viewing The Chosen"),
-  },
-  {
-    title: "The Beatitudes: The Path to Blessings",
-    imageUrl: require("../../assets/images/image (7).png"),
-    subTitle: "The Gospel of Lord by Andrew Farlay",
-    views: 150,
-    onPress: () => console.log("Viewing Overflow Worship"),
-  },
-  {
-    title: "Revival Nights",
-    imageUrl: require("../../assets/images/image (7).png"),
-    subTitle: "The Gospel of Lord by Andrew Farlay",
-    views: 300,
-    onPress: () => console.log("Viewing Revival Nights"),
-  },
-];
 
 export default function EbookComponent() {
   const mediaStore = useMediaStore();
+  const [modalVisible, setModalVisible] = useState<string | null>(null);
+  const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
+  const [rsModalIndex, setRsModalIndex] = useState<number | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       mediaStore.refreshUserDataForExistingMedia();
     }, [])
   );
-  const ebookItems = mediaStore.mediaList.filter(item => item.contentType === "ebook");
-  const [modalVisible, setModalVisible] = useState<string | null>(null);
-  const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
-  const [rsModalIndex, setRsModalIndex] = useState<number | null>(null);
 
-  const renderVideoCard = (
-    video: VideoCard,
+  // Filter ebooks from media store
+  const ebookItems = mediaStore.mediaList.filter(item => 
+    item.contentType === "ebook" || item.contentType === "books"
+  );
+  
+  console.log("📚 EbookComponent - Total media items:", mediaStore.mediaList.length);
+  console.log("📚 EbookComponent - Ebook items found:", ebookItems.length);
+  console.log("📚 EbookComponent - Ebook items:", ebookItems.map(e => ({ title: e.title, contentType: e.contentType })));
+
+  // Get time ago for items
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const posted = new Date(timestamp);
+    const diffMs = now.getTime() - posted.getTime();
+
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (minutes < 1) return "NOW";
+    if (minutes < 60) return `${minutes}MIN AGO`;
+    if (hours < 24) return `${hours}HRS AGO`;
+    return `${days}DAYS AGO`;
+  };
+
+  // Process ebook items with time ago
+  const processedEbooks = ebookItems.map(item => ({
+    ...item,
+    timeAgo: getTimeAgo(item.createdAt),
+    speakerAvatar: item.speakerAvatar || require("../../assets/images/Avatar-1.png"),
+    imageUrl: item.imageUrl || require("../../assets/images/image (12).png"),
+  }));
+
+  // Categorize ebooks
+  const recentEbooks = processedEbooks.slice(0, 1);
+  const previouslyViewed = processedEbooks.slice(1, 4);
+  const exploreMoreEbooks = processedEbooks.slice(4, 8);
+  const trendingEbooks = processedEbooks.slice(8, 12);
+  const recommendedEbooks = processedEbooks.slice(12, 16);
+
+  const renderEbookCard = (
+    ebook: EbookItem,
     index: number,
-    sectionId: string,
-    playType: "progress" | "center" = "center"
+    sectionId: string
   ) => {
     const modalKey = `${sectionId}-${index}`;
     return (
       <View className="flex flex-col">
         <TouchableOpacity
           key={modalKey}
-          onPress={video.onPress}
+          onPress={ebook.onPress}
           className="mr-4 w-full h-[436px]"
           activeOpacity={0.9}
         >
           <View className="w-full h-[393px] overflow-hidden relative">
             <Image
-              source={video.imageUrl}
+              source={ebook.imageUrl}
               className="w-full h-full absolute"
               resizeMode="cover"
             />
@@ -224,7 +105,7 @@ export default function EbookComponent() {
                 className="text-white text-base font-bold"
                 numberOfLines={2}
               >
-                {video.title}
+                {ebook.title}
               </Text>
             </View>
 
@@ -267,7 +148,7 @@ export default function EbookComponent() {
             <View className="flex flex-row items-center">
               <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center relative ml-1 mt-2">
                 <Image
-                  source={video.speakerAvatar}
+                  source={ebook.speakerAvatar}
                   style={{
                     width: 80,
                     height: 80,
@@ -281,12 +162,12 @@ export default function EbookComponent() {
               <View className="ml-3">
                 <View className="flex-row items center">
                   <Text className="ml-1 text-[13px] font-rubik-semibold text-[#344054] mt-1">
-                    {video.speaker}
+                    {ebook.speaker || ebook.uploadedBy || "Unknown Author"}
                   </Text>
                   <View className="flex flex-row mt-2 ml-2">
                     <Ionicons name="time-outline" size={13} color="#9CA3AF" />
                     <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-                      {video.timeAgo}
+                      {ebook.timeAgo}
                     </Text>
                   </View>
                 </View>
@@ -298,19 +179,19 @@ export default function EbookComponent() {
                       resizeMode="contain"
                     />
                     <Text className="text-[10px] text-gray-500 ml-1 mt-1 font-rubik">
-                      {video.views}
+                      {ebook.views || 0}
                     </Text>
                   </View>
                   <View className="flex-row items-center ml-4">
                     <AntDesign name="sharealt" size={16} color="#98A2B3" />
                     <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-                      {video.sheared}
+                      {ebook.sheared || 0}
                     </Text>
                   </View>
                   <View className="flex-row items-center ml-6">
                     <Fontisto name="favorite" size={14} color="#98A2B3" />
                     <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-                      {video.saved}
+                      {ebook.saved || 0}
                     </Text>
                   </View>
                   <View className="flex-row items-center ml-6">
@@ -320,7 +201,7 @@ export default function EbookComponent() {
                       color="#98A2B3"
                     />
                     <Text className="text-[10px] text-gray-500 ml-1 font-rubik">
-                      {video.favorite}
+                      {ebook.favorite || 0}
                     </Text>
                   </View>
                 </View>
@@ -342,7 +223,7 @@ export default function EbookComponent() {
 
   const renderMiniCards = (
     title: string,
-    items: typeof recommendedItems,
+    items: EbookItem[],
     modalIndex: number | null,
     setModalIndex: any
   ) => (
@@ -409,7 +290,7 @@ export default function EbookComponent() {
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  {item.subTitle?.split(" ").slice(0, 4).join(" ") + " ..."}
+                  {item.speaker || item.uploadedBy || "Unknown Author"}
                 </Text>
                 <TouchableOpacity
                   onPress={() =>
@@ -431,7 +312,7 @@ export default function EbookComponent() {
                   resizeMode="contain"
                 />
                 <Text className="text-[10px] text-gray-500 ml-2 mt-1 font-rubik">
-                  {item.views}
+                  {item.views || 0}
                 </Text>
               </View>
             </View>
@@ -440,6 +321,20 @@ export default function EbookComponent() {
       </ScrollView>
     </View>
   );
+
+  // Show empty state if no ebooks
+  if (processedEbooks.length === 0) {
+    return (
+      <View className="flex-1 justify-center items-center">
+        <Text className="text-[#344054] text-lg font-rubik-semibold mb-2">
+          No Ebooks Available
+        </Text>
+        <Text className="text-[#667085] text-sm font-rubik text-center px-8">
+          Upload PDF ebooks through the upload section to see them here.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -455,53 +350,60 @@ export default function EbookComponent() {
         setRsModalIndex(null);
       }}
     >
+      {/* Recent */}
+      {recentEbooks.length > 0 && (
       <View className="mt-4">
         <Text className="text-[#344054] text-[16px] font-rubik-semibold mb-4">
-          Reading
+            Recent
         </Text>
-        {Videos.map((video, index) => (
-          <View key={`Videos-${video.title}-${index}`}>
-            {renderVideoCard(video, index, "main", "progress")}
+          {recentEbooks.map((ebook, index) => (
+            <View key={`recent-${ebook._id}-${index}`}>
+              {renderEbookCard(ebook, index, "recent")}
           </View>
         ))}
       </View>
+      )}
 
-      {renderMiniCards(
+      {/* Previously Viewed */}
+      {previouslyViewed.length > 0 && 
+        renderMiniCards(
         "Previously Viewed",
         previouslyViewed,
         pvModalIndex,
         setPvModalIndex
-      )}
+        )
+      }
 
-      {renderMiniCards(
-        "Books from your favourite authors",
-        recommendedItems,
+      {/* Explore More Ebook */}
+      {exploreMoreEbooks.length > 0 && 
+        renderMiniCards(
+          "Explore More Ebook",
+          exploreMoreEbooks,
         rsModalIndex,
         setRsModalIndex
-      )}
+        )
+      }
 
+      {/* Trending */}
+      {trendingEbooks.length > 0 && (
       <View className="mt-9 gap-12">
-        {videosA.map((video, index) => (
-          <View key={`videosA-${video.title}-${index}`}>
-            {renderVideoCard(video, index, "videosA", "center")}
+          {trendingEbooks.map((ebook, index) => (
+            <View key={`trending-${ebook._id}-${index}`}>
+              {renderEbookCard(ebook, index, "trending")}
           </View>
         ))}
       </View>
-
-      {renderMiniCards(
-        "Recommended for you",
-        recommendedItems,
-        rsModalIndex,
-        setRsModalIndex
       )}
 
-      <View className="mt-9 gap-12">
-        {videosB.map((video, index) => (
-          <View key={`videosB-${video.title}-${index}`}>
-            {renderVideoCard(video, index, "videosB", "center")}
-          </View>
-        ))}
-      </View>
+      {/* Recommended for Explore More Ebook */}
+      {recommendedEbooks.length > 0 && 
+        renderMiniCards(
+          "Recommended for Explore More Ebook",
+          recommendedEbooks,
+          rsModalIndex,
+          setRsModalIndex
+        )
+      }
     </ScrollView>
   );
 }

@@ -344,8 +344,9 @@ const contentTypes = [
   { label: "Music", value: "music" },
   { label: "Videos", value: "videos" },
   { label: "Books", value: "books" },
+  { label: "Ebook", value: "ebook" },
   { label: "Podcasts", value: "podcasts" },
-  { label: "Sermons", value: "sermons" },
+  { label: "Sermons", value: "sermon" }, // Special value for sermon content
 ];
 
 export default function UploadScreen() {
@@ -356,6 +357,7 @@ export default function UploadScreen() {
   const [description, setDescription] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedType, setSelectedType] = useState("");
+  const [isSermonContent, setIsSermonContent] = useState(false);
   const [loading, setLoading] = useState(false);
   
 
@@ -523,7 +525,25 @@ export default function UploadScreen() {
       
       formData.append("title", title);
       formData.append("description", description);
-      formData.append("contentType", selectedType);
+      
+      // Handle sermon content type - determine if it should be music or videos based on file type
+      let apiContentType = selectedType;
+      if (selectedType === "sermon") {
+        // Determine if it's audio or video based on file mime type
+        if (file.mimeType.startsWith("audio/")) {
+          apiContentType = "music";
+        } else if (file.mimeType.startsWith("video/")) {
+          apiContentType = "videos";
+        } else {
+          // Default to music for sermon content
+          apiContentType = "music";
+        }
+      } else if (selectedType === "ebook") {
+        // Map ebook to books for API compatibility
+        apiContentType = "books";
+      }
+      
+      formData.append("contentType", apiContentType);
       formData.append(
         "genre",
         JSON.stringify([selectedCategory.toLowerCase(), "All"])
@@ -583,6 +603,7 @@ export default function UploadScreen() {
       const now = new Date();
 
       // 🛡️ Use the new validation method to ensure fresh user data
+      
       await useMediaStore.getState().addMediaWithUserValidation({
         _id: uploaded._id,
         title: uploaded.title,
@@ -590,7 +611,7 @@ export default function UploadScreen() {
         uri: uploaded.fileUrl,
         category: uploaded.genre,
         type: uploaded.contentType,
-        contentType: uploaded.contentType,
+        contentType: isSermonContent ? "sermon" : uploaded.contentType, // Override content type for sermon
         fileUrl: uploaded.fileUrl,
         fileMimeType: uploaded.fileMimeType || file.mimeType,
         // Visual cover fields
@@ -624,6 +645,7 @@ export default function UploadScreen() {
       setDescription("");
       setSelectedCategory("");
       setSelectedType("");
+      setIsSermonContent(false);
       setFile(null);
       setThumbnail(null);
 
@@ -650,7 +672,15 @@ export default function UploadScreen() {
     return (
       <TouchableOpacity
         key={value}
-        onPress={() => setSelected(value)}
+        onPress={() => {
+          setSelected(value);
+          // Check if Sermons is selected
+          if (label === "Sermons") {
+            setIsSermonContent(true);
+          } else {
+            setIsSermonContent(false);
+          }
+        }}
         className={`px-4 py-2 rounded-full mr-2 mb-2 border ${
           isSelected ? "bg-black border-black" : "bg-white border-gray-300"
         }`}
