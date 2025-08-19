@@ -162,3 +162,8 @@ export function usePlaybackView({
 
   return contentView;
 }
+
+// Default export for route compatibility
+export default function UseContentView() {
+  return null;
+}

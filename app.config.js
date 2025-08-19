@@ -59,7 +59,7 @@ export default {
       'expo-media-library',
 
       [
-        "sentry-expo",
+        "@sentry/react-native",
         {
             "url": "https://sentry.io/",
           organization: "jevah-app", // from Sentry dashboard

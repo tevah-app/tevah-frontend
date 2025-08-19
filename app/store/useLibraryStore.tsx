@@ -114,3 +114,8 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     return savedItems;
   }
 }));
+
+// Default export for route compatibility
+export default function UseLibraryStore() {
+  return null;
+}

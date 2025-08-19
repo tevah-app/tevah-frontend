@@ -21,3 +21,8 @@
 //   ...musicVideos,
 //   // ...ebooks etc
 // ];
+
+// Default export for route compatibility
+export default function VideoData() {
+  return null;
+}

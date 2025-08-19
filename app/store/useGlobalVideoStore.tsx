@@ -225,3 +225,8 @@ export const useGlobalVideoStore = create<VideoPlayerState>()(
     }
   }))
 );
+
+// Default export for route compatibility
+export default function UseGlobalVideoStore() {
+  return null;
+}

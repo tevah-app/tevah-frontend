@@ -1,27 +1,28 @@
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Audio, ResizeMode, Video } from "expo-av";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Dimensions,
-  Image,
-  PanResponder,
-  ScrollView,
-  Share,
-  Text,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Dimensions,
+    Image,
+    PanResponder,
+    ScrollView,
+    Share,
+    Text,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 
 import BottomNav from "../components/BottomNav";
 import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
 import { useLibraryStore } from "../store/useLibraryStore";
+import allMediaAPI from "../utils/allMediaAPI";
 import {
-  getFavoriteState,
-  getPersistedStats,
-  persistStats,
-  toggleFavorite,
+    getFavoriteState,
+    getPersistedStats,
+    persistStats,
+    toggleFavorite,
 } from "../utils/persistentStorage";
 
 // ✅ Route Params Type
@@ -89,6 +90,24 @@ export default function Reelsviewscroll() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("Home");
   const [menuVisible, setMenuVisible] = useState<boolean>(false);
+
+  // 🔁 Helper: try to refresh stale media URL from backend
+  const tryRefreshMediaUrl = async (item: any): Promise<string | null> => {
+    try {
+      const response = await allMediaAPI.getAllMedia({
+        search: item.title,
+        contentType: (item.contentType as any),
+        limit: 1,
+      });
+      const fresh = (response as any)?.media?.[0];
+      if (fresh?.fileUrl) {
+        return fresh.fileUrl as string;
+      }
+    } catch (e) {
+      console.log("🔁 Refresh media URL failed in reels:", e);
+    }
+    return null;
+  };
 
   // Parse video list and current index for TikTok-style navigation
   const parsedVideoList = videoList ? JSON.parse(videoList) : [];
@@ -377,6 +396,23 @@ export default function Reelsviewscroll() {
   // Function to render a single video item
   const renderVideoItem = (videoData: any, index: number, isActive: boolean = false) => {
     const videoKey = `reel-${videoData.title}-${videoData.speaker}-${index}`;
+    const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // 🔁 Refresh URL on mount if needed
+    useEffect(() => {
+      const refreshIfNeeded = async () => {
+        if (!videoData.fileUrl || String(videoData.fileUrl).trim() === "") {
+          setIsRefreshing(true);
+          const fresh = await tryRefreshMediaUrl(videoData);
+          setRefreshedUrl(fresh);
+          setIsRefreshing(false);
+        }
+      };
+      refreshIfNeeded();
+    }, [videoData.fileUrl]);
+
+    const videoUrl = refreshedUrl || videoData.fileUrl || videoData.imageUrl;
     
     return (
       <View key={videoKey} style={{ height: screenHeight, width: '100%' }}>
@@ -398,7 +434,7 @@ export default function Reelsviewscroll() {
               ref={(ref) => {
                 if (ref && isActive) videoRefs.current[modalKey] = ref;
               }}
-              source={{ uri: videoData.fileUrl || videoData.imageUrl }}
+              source={{ uri: videoUrl }}
               style={{ width: "100%", height: "100%", position: "absolute" }}
               resizeMode={ResizeMode.COVER}
               isMuted={mutedVideos[modalKey] ?? false}
@@ -406,6 +442,16 @@ export default function Reelsviewscroll() {
               shouldPlay={isActive && (playingVideos[modalKey] ?? false)}
               useNativeControls={false}
               isLooping={true}
+              onError={async (error) => {
+                console.log(`❌ Video loading error in reels for ${videoData.title}:`, error);
+                // Try to refresh URL on error
+                if (!refreshedUrl) {
+                  setIsRefreshing(true);
+                  const fresh = await tryRefreshMediaUrl(videoData);
+                  setRefreshedUrl(fresh);
+                  setIsRefreshing(false);
+                }
+              }}
               onPlaybackStatusUpdate={(status) => {
                 if (!isActive || !status.isLoaded) return;
                 

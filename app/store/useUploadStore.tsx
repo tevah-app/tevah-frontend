@@ -369,3 +369,8 @@ export const useMediaStore = create<MediaState>((set, get) => ({
   clearStopAudioFn: () => set({ stopAudioFn: null }),
 }));
 
+// Default export for route compatibility
+export default function UseUploadStore() {
+  return null;
+}
+

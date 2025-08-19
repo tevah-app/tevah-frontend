@@ -1,7 +1,7 @@
 import { AntDesign, Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Audio, ResizeMode, Video } from "expo-av";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     BackHandler,
     Dimensions,
@@ -20,6 +20,7 @@ import useVideoViewport from "../hooks/useVideoViewport";
 import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
 import { useLibraryStore } from "../store/useLibraryStore";
 import { useMediaStore } from "../store/useUploadStore";
+import allMediaAPI from "../utils/allMediaAPI";
 import { getFavoriteState, getPersistedStats, getViewed, persistStats, persistViewed, toggleFavorite } from "../utils/persistentStorage";
 import { getDisplayName } from "../utils/userValidation";
 
@@ -168,6 +169,32 @@ export default function AllContent() {
     soundMapRef.current = soundMap;
   }, [soundMap]);
 
+  // Try to refresh a stale/expired media URL from backend by title and type
+  const tryRefreshMediaUrl = useCallback(async (item: MediaItem): Promise<string | null> => {
+    try {
+      const response = await allMediaAPI.getAllMedia({
+        search: item.title,
+        contentType: (item.contentType as any),
+        limit: 1,
+      });
+      const fresh = (response as any)?.media?.[0];
+      if (fresh?.fileUrl) {
+        const updated = mediaStore.mediaList.map((m: any) => {
+          const sameId = m._id && item._id && m._id === item._id;
+          const sameTitleAndType = m.title === item.title && m.contentType === item.contentType;
+        return (sameId || sameTitleAndType)
+            ? { ...m, fileUrl: fresh.fileUrl, thumbnailUrl: fresh.thumbnailUrl || m.thumbnailUrl }
+            : m;
+        });
+        mediaStore.setMediaList(updated as any);
+        return fresh.fileUrl as string;
+      }
+    } catch (e) {
+      console.log("🔁 Refresh media URL failed:", e);
+    }
+    return null;
+  }, [mediaStore.mediaList]);
+
   // 🛑 Stop audio when component loses focus (switching tabs/categories)
   useFocusEffect(
     useCallback(() => {
@@ -308,6 +335,7 @@ export default function AllContent() {
   }, [mediaList]);
 
   const getContentKey = (item: MediaItem) => `${item.contentType}-${item._id || Math.random().toString(36).substring(2)}`;
+  const getAudioKey = (fileUrl: string): string => `Audio-${fileUrl}`;
   const [contentStats, setContentStats] = useState<Record<string, any>>({});
   const [previouslyViewed, setPreviouslyViewed] = useState<any[]>([]);
   
@@ -340,6 +368,29 @@ export default function AllContent() {
   const toggleMute = (key: string) =>
     globalVideoStore.toggleVideoMute(key);
 
+  // 🔁 Helper: try to refresh stale media URL then play audio
+  const playMusicWithRefresh = useCallback(async (item: MediaItem, id: string) => {
+    const uri = item.fileUrl;
+    if (!uri || String(uri).trim() === "") {
+      const fresh = await tryRefreshMediaUrl(item);
+      if (fresh) {
+        playAudio(fresh, id);
+      }
+    } else {
+      playAudio(uri, id);
+    }
+  }, [playAudio]);
+
+  // 🔁 Helper: try to refresh stale media URL for video/sermon cards
+  const getRefreshedVideoUrl = useCallback(async (item: MediaItem): Promise<string> => {
+    const uri = item.fileUrl;
+    if (!uri || String(uri).trim() === "") {
+      const fresh = await tryRefreshMediaUrl(item);
+      return fresh || uri;
+    }
+    return uri;
+  }, [tryRefreshMediaUrl]);
+
   const getTimeAgo = (createdAt: string): string => {
     const now = new Date();
     const posted = new Date(createdAt);
@@ -371,7 +422,7 @@ export default function AllContent() {
         sheared: contentStats[getContentKey(v)]?.sheared || v.sheared || 0,
         saved: contentStats[getContentKey(v)]?.saved || v.saved || 0,
         favorite: globalFavoriteCounts[getContentKey(v)] || v.favorite || 0,
-        fileUrl: v.fileUrl,
+        fileUrl: v.fileUrl || "", // Will be refreshed in reels if empty
         imageUrl: v.fileUrl,
         speakerAvatar: typeof v.speakerAvatar === "string" 
           ? v.speakerAvatar 
@@ -393,7 +444,7 @@ export default function AllContent() {
           sheared: String(contentStats[getContentKey(video)]?.sheared || video.sheared || 0),
           saved: String(contentStats[getContentKey(video)]?.saved || video.saved || 0),
           favorite: String(globalFavoriteCounts[getContentKey(video)] || video.favorite || 0),
-          imageUrl: video.fileUrl,
+          imageUrl: video.fileUrl || "",
           speakerAvatar: typeof video.speakerAvatar === "string" 
             ? video.speakerAvatar 
             : video.speakerAvatar || require("../../assets/images/Avatar-1.png").toString(),
@@ -792,6 +843,23 @@ export default function AllContent() {
     const key = getContentKey(video);
     const stats = contentStats[key] || {};
     const isSermon = video.contentType === "sermon";
+    const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+  
+    // 🔁 Refresh URL on mount if needed
+    useEffect(() => {
+      const refreshIfNeeded = async () => {
+        if (!video.fileUrl || String(video.fileUrl).trim() === "") {
+          setIsRefreshing(true);
+          const fresh = await getRefreshedVideoUrl(video);
+          setRefreshedUrl(fresh);
+          setIsRefreshing(false);
+        }
+      };
+      refreshIfNeeded();
+    }, [video.fileUrl]);
+  
+    const videoUrl = refreshedUrl || video.fileUrl;
   
     return (
       <View 
@@ -823,7 +891,7 @@ export default function AllContent() {
                   delete videoRefs.current[modalKey];
                 }
               }}
-              source={{ uri: video.fileUrl }}
+              source={{ uri: videoUrl }}
               style={{ width: "100%", height: "100%", position: "absolute" }}
               resizeMode={ResizeMode.COVER}
               isMuted={mutedVideos[modalKey] ?? false}
@@ -1053,6 +1121,23 @@ export default function AllContent() {
     
     // Add content type indicator for sermons
     const isSermon = audio.contentType === "sermon";
+    const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // 🔁 Refresh URL on mount if needed
+    useEffect(() => {
+      const refreshIfNeeded = async () => {
+        if (!audio.fileUrl || String(audio.fileUrl).trim() === "") {
+          setIsRefreshing(true);
+          const fresh = await tryRefreshMediaUrl(audio);
+          setRefreshedUrl(fresh);
+          setIsRefreshing(false);
+        }
+      };
+      refreshIfNeeded();
+    }, [audio.fileUrl]);
+
+    const audioUrl = refreshedUrl || audio.fileUrl;
 
     return (
       <View 
@@ -1074,7 +1159,7 @@ export default function AllContent() {
             {/* Center Play/Pause button */}
             <View className="absolute inset-0 justify-center items-center">
               <TouchableOpacity
-                onPress={() => playAudio(audio.fileUrl, modalKey)}
+                onPress={() => playAudio(audioUrl, modalKey)}
                 className="bg-white/70 p-3 rounded-full"
                 activeOpacity={0.9}
               >
@@ -1125,7 +1210,7 @@ export default function AllContent() {
 
             {/* Bottom Controls: progress and mute, styled similar to video */}
             <View className="absolute bottom-3 left-3 right-3 flex-row items-center gap-2 px-3">
-              <TouchableOpacity onPress={() => playAudio(audio.fileUrl, modalKey)}>
+              <TouchableOpacity onPress={() => playAudio(audioUrl, modalKey)}>
                 <Ionicons 
                   name={isPlaying ? "pause" : "play"} 
                   size={24} 
@@ -1271,9 +1356,27 @@ export default function AllContent() {
     const thumbnailSource = sermon?.imageUrl
       ? (typeof sermon.imageUrl === "string" ? { uri: sermon.imageUrl } : (sermon.imageUrl as any))
       : { uri: sermon.fileUrl };
+    const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // 🔁 Refresh URL on mount if needed
+    useEffect(() => {
+      const refreshIfNeeded = async () => {
+        if (!sermon.fileUrl || String(sermon.fileUrl).trim() === "") {
+          setIsRefreshing(true);
+          const fresh = await tryRefreshMediaUrl(sermon);
+          setRefreshedUrl(fresh);
+          setIsRefreshing(false);
+        }
+      };
+      refreshIfNeeded();
+    }, [sermon.fileUrl]);
+
+    const sermonUrl = refreshedUrl || sermon.fileUrl;
+    const isVideoSermon = sermonUrl.includes(".mp4") || sermonUrl.includes(".mov");
     
     // If it's a video sermon, render as video card
-    if (isVideo) {
+    if (isVideoSermon) {
       return renderVideoCard(sermon, index);
     }
     
@@ -1563,16 +1666,25 @@ export default function AllContent() {
                   />
                 </View>
 
-                {/* Play button overlay for videos and music */}
+                {/* Play button overlay for videos and music - ensure same color as video (#FEA74E) */}
                 {(item.contentType === "videos" || item.contentType === "music") && !failedVideoLoads.has(item._id || item.fileUrl) && (
                   <View className="absolute inset-0 justify-center items-center">
-                    <View className="bg-white/70 p-2 rounded-full">
-                      <Ionicons 
-                        name="play" 
-                        size={24} 
-                        color={item.contentType === "videos" ? "#FEA74E" : "#6663FD"} 
-                      />
-                    </View>
+                    <TouchableOpacity onPress={() => {
+                      if (item.contentType === "videos") {
+                        handleVideoTap(`mini-${item._id || index}`, item, index);
+                      } else if (item.contentType === "music") {
+                        const id = getAudioKey(item.fileUrl);
+                        playMusicWithRefresh(item, id);
+                      }
+                    }} activeOpacity={0.9}>
+                      <View className="bg-white/70 p-2 rounded-full">
+                        <Ionicons 
+                          name="play" 
+                          size={24} 
+                          color="#FEA74E" 
+                        />
+                      </View>
+                    </TouchableOpacity>
                   </View>
                 )}
 

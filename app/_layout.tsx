@@ -1,15 +1,15 @@
 import { ClerkProvider } from '@clerk/clerk-expo';
 import { Rubik_400Regular, Rubik_600SemiBold, Rubik_700Bold, useFonts } from '@expo-google-fonts/rubik';
+import * as Sentry from '@sentry/react-native';
 import Constants from "expo-constants";
-import { ErrorBoundary, Slot } from 'expo-router';
+import { Slot } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useMediaStore } from './store/useUploadStore';
-import React from 'react';
-import * as Sentry from 'sentry-expo';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // ✅ Initialize Sentry
 Sentry.init({
@@ -121,16 +121,14 @@ export default function RootLayout() {
 
   // ✅ Normal app rendering
   return (
-    <ErrorBoundary retry={function (): Promise<void> {
-      throw new Error('Function not implemented.');
-    } } error={undefined}>
-      <SafeAreaProvider>
-        <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <Slot />
-          </GestureHandlerRootView>
-        </ClerkProvider>
-      </SafeAreaProvider>
+    <ErrorBoundary>
+    <SafeAreaProvider>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Slot />
+        </GestureHandlerRootView>
+      </ClerkProvider>
+    </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

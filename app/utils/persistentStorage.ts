@@ -227,3 +227,8 @@ export const clearAllPersistedData = async () => {
     console.error("❌ Failed to clear persisted data:", err);
   }
 };
+
+// Default export for route compatibility
+export default function PersistentStorage() {
+  return null;
+}
