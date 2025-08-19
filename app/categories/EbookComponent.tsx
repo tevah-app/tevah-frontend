@@ -5,9 +5,10 @@ import {
     MaterialIcons,
 } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { useMediaStore } from "../store/useUploadStore";
+import { convertToDownloadableItem, useDownloadHandler } from "../utils/downloadUtils";
 
 interface EbookItem {
   _id?: string;
@@ -32,6 +33,9 @@ export default function EbookComponent() {
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [pvModalIndex, setPvModalIndex] = useState<number | null>(null);
   const [rsModalIndex, setRsModalIndex] = useState<number | null>(null);
+  
+  // Download functionality
+  const { handleDownload, checkIfDownloaded } = useDownloadHandler();
 
   useFocusEffect(
     useCallback(() => {
@@ -134,9 +138,24 @@ export default function EbookComponent() {
                   <MaterialIcons name="library-add" size={18} color="#3A3E50" />
                 </TouchableOpacity>
                 <View className="h-px bg-gray-200 my-1" />
-                <TouchableOpacity className="py-2 flex-row items-center justify-between">
-                  <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
-                  <Ionicons name="download-outline" size={24} color="#090E24" />
+                <TouchableOpacity 
+                  className="py-2 flex-row items-center justify-between"
+                  onPress={async () => {
+                    const downloadableItem = convertToDownloadableItem(ebook, 'ebook');
+                    const result = await handleDownload(downloadableItem);
+                    if (result.success) {
+                      setModalVisible(null);
+                    }
+                  }}
+                >
+                  <Text className="text-[#1D2939] font-rubik ml-2">
+                    {checkIfDownloaded(ebook._id || ebook.fileUrl) ? "Downloaded" : "Download"}
+                  </Text>
+                  <Ionicons 
+                    name={checkIfDownloaded(ebook._id || ebook.fileUrl) ? "checkmark-circle" : "download-outline"} 
+                    size={24} 
+                    color={checkIfDownloaded(ebook._id || ebook.fileUrl) ? "#256E63" : "#090E24"} 
+                  />
                 </TouchableOpacity>
                 </View>
               </>

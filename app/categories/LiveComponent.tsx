@@ -4,11 +4,12 @@ import {
     Ionicons,
     MaterialIcons,
 } from "@expo/vector-icons";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Image, ImageSourcePropType, ScrollView, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 
 import { router, useFocusEffect, useRouter } from "expo-router";
 import { useMediaStore } from "../store/useUploadStore";
+import { useDownloadHandler, convertToDownloadableItem } from "../utils/downloadUtils";
 
 
 interface VideoCard {
@@ -348,6 +349,9 @@ export default function LiveComponent() {
   let globalIndex = 0;
 
   const mediaStore = useMediaStore();
+  
+  // Download functionality
+  const { handleDownload, checkIfDownloaded } = useDownloadHandler();
   useFocusEffect(
     useCallback(() => {
       mediaStore.refreshUserDataForExistingMedia();
@@ -501,10 +505,24 @@ const renderVideoCard = (video: VideoCard, index: number, p0: string) => {
               <Text className="text-[#1D2939] ml-2">Save to Library</Text>
               <MaterialIcons name="library-add" size={18} color="#3A3E50" />
             </TouchableOpacity>
-            <View className="h-px bg-gray-200 my-1" />
-            <TouchableOpacity className="py-2 flex-row justify-between">
-              <Text className="text-[#1D2939] ml-2">Download</Text>
-              <Ionicons name="download-outline" size={24} color="#090E24" />
+            <TouchableOpacity 
+              className="py-2 flex-row justify-between"
+              onPress={async () => {
+                const downloadableItem = convertToDownloadableItem(video, 'live');
+                const result = await handleDownload(downloadableItem);
+                if (result.success) {
+                  setModalVisible(null);
+                }
+              }}
+            >
+              <Text className="text-[#1D2939] ml-2">
+                {checkIfDownloaded(video._id || video.fileUrl) ? "Downloaded" : "Download"}
+              </Text>
+              <Ionicons 
+                name={checkIfDownloaded(video._id || video.fileUrl) ? "checkmark-circle" : "download-outline"} 
+                size={24} 
+                color={checkIfDownloaded(video._id || video.fileUrl) ? "#256E63" : "#090E24"} 
+              />
             </TouchableOpacity>
             </View>
           </>

@@ -27,6 +27,7 @@ import { useInteractionStore } from "../store/useInteractionStore";
 import { useLibraryStore } from "../store/useLibraryStore";
 import { useMediaStore } from "../store/useUploadStore";
 import contentInteractionAPI from "../utils/contentInteractionAPI";
+import { useDownloadHandler, convertToDownloadableItem } from "../utils/downloadUtils";
 import {
     getFavoriteState,
     getPersistedStats,
@@ -77,6 +78,9 @@ export default function VideoComponent() {
   const router = useRouter();
   const [videoVolume, setVideoVolume] = useState<number>(1.0); // 🔊 Add volume control
   const getVideoKey = (fileUrl: string): string => `video-${fileUrl}`;
+  
+  // Download functionality
+  const { handleDownload, checkIfDownloaded } = useDownloadHandler();
   
   // 📱 Viewport detection for auto-play
   const { calculateVideoVisibility } = useVideoViewport();
@@ -1156,9 +1160,24 @@ export default function VideoComponent() {
                   color="#1D2939"
                 />
               </TouchableOpacity>
-              <TouchableOpacity className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2">
-                <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
-                <Ionicons name="download-outline" size={24} color="#090E24" />
+              <TouchableOpacity 
+                className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2"
+                onPress={async () => {
+                  const downloadableItem = convertToDownloadableItem(video, 'video');
+                  const result = await handleDownload(downloadableItem);
+                  if (result.success) {
+                    setModalVisible(null);
+                  }
+                }}
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">
+                  {checkIfDownloaded(video._id || video.fileUrl) ? "Downloaded" : "Download"}
+                </Text>
+                <Ionicons 
+                  name={checkIfDownloaded(video._id || video.fileUrl) ? "checkmark-circle" : "download-outline"} 
+                  size={24} 
+                  color={checkIfDownloaded(video._id || video.fileUrl) ? "#256E63" : "#090E24"} 
+                />
               </TouchableOpacity>
             </View>
           </>
@@ -1338,9 +1357,24 @@ export default function VideoComponent() {
                       <Text className="text-[#1D2939] font-rubik ml-2">Save to Library</Text>
                       <MaterialIcons name="bookmark-border" size={22} color="#1D2939" />
                     </TouchableOpacity>
-                    <TouchableOpacity className="py-2 flex-row items-center justify-between mt-2">
-                      <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
-                      <Ionicons name="download-outline" size={24} color="#090E24" />
+                    <TouchableOpacity 
+                      className="py-2 flex-row items-center justify-between mt-2"
+                      onPress={async () => {
+                        const downloadableItem = convertToDownloadableItem(item, 'video');
+                        const result = await handleDownload(downloadableItem);
+                        if (result.success) {
+                          closeAllMenus();
+                        }
+                      }}
+                    >
+                      <Text className="text-[#1D2939] font-rubik ml-2">
+                        {checkIfDownloaded(item.fileUrl) ? "Downloaded" : "Download"}
+                      </Text>
+                      <Ionicons 
+                        name={checkIfDownloaded(item.fileUrl) ? "checkmark-circle" : "download-outline"} 
+                        size={24} 
+                        color={checkIfDownloaded(item.fileUrl) ? "#256E63" : "#090E24"} 
+                      />
                     </TouchableOpacity>
                   </View>
                 </>

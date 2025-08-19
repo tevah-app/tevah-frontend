@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGlobalVideoStore } from "../../store/useGlobalVideoStore";
 import { useLibraryStore } from "../../store/useLibraryStore";
+import { useDownloadHandler, convertToDownloadableItem } from "../../utils/downloadUtils";
 
 
 
@@ -73,6 +74,9 @@ export default function AllLibrary () {
   const globalVideoStore = useGlobalVideoStore();
   const [savedItems, setSavedItems] = useState<any[]>([]);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  
+  // Download functionality
+  const { handleDownload, checkIfDownloaded } = useDownloadHandler();
   
   // Video playback state for videos in all library
   const [playingVideos, setPlayingVideos] = useState<Record<string, boolean>>({});
@@ -274,11 +278,25 @@ export default function AllLibrary () {
                 <Text className="text-[#1D2939] font-rubik ml-2">Remove from Library</Text>
                 <MaterialIcons name="bookmark" size={20} color="#1D2939" />
               </TouchableOpacity>
-              <TouchableOpacity className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2"
-                onPress={() => setMenuOpenId(null)}
+              <TouchableOpacity 
+                className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2"
+                onPress={async () => {
+                  const contentType = item.contentType === 'music' ? 'audio' : item.contentType;
+                  const downloadableItem = convertToDownloadableItem(item, contentType as any);
+                  const result = await handleDownload(downloadableItem);
+                  if (result.success) {
+                    setMenuOpenId(null);
+                  }
+                }}
               >
-                <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
-                <Ionicons name="download-outline" size={20} color="#090E24" />
+                <Text className="text-[#1D2939] font-rubik ml-2">
+                  {checkIfDownloaded(item.id) ? "Downloaded" : "Download"}
+                </Text>
+                <Ionicons 
+                  name={checkIfDownloaded(item.id) ? "checkmark-circle" : "download-outline"} 
+                  size={20} 
+                  color={checkIfDownloaded(item.id) ? "#256E63" : "#090E24"} 
+                />
               </TouchableOpacity>
             </View>
           </>

@@ -453,6 +453,7 @@ import {
 import InteractionButtons from "../components/InteractionButtons";
 import { useLibraryStore } from "../store/useLibraryStore";
 import { useMediaStore } from "../store/useUploadStore";
+import { useDownloadHandler, convertToDownloadableItem } from "../utils/downloadUtils";
 import {
   getPersistedStats,
   getViewedAudio,
@@ -656,6 +657,9 @@ const recommendedItems: RecommendedItem[] = [
 export default function Music() {
   const mediaStore = useMediaStore();
   const libraryStore = useLibraryStore();
+  
+  // Download functionality
+  const { handleDownload, checkIfDownloaded } = useDownloadHandler();
   // Prevent infinite refresh loops: run refresh once after mount using static accessor
   const hasRefreshedRef = useRef(false);
   useEffect(() => {
@@ -1410,9 +1414,24 @@ useEffect(() => {
                   color="#1D2939"
                 />
               </TouchableOpacity>
-              <TouchableOpacity className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2">
-                <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
-                <Ionicons name="download-outline" size={24} color="#090E24" />
+              <TouchableOpacity 
+                className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2"
+                onPress={async () => {
+                  const downloadableItem = convertToDownloadableItem(Audio, 'audio');
+                  const result = await handleDownload(downloadableItem);
+                  if (result.success) {
+                    setModalVisible(null);
+                  }
+                }}
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">
+                  {checkIfDownloaded(Audio._id || Audio.fileUrl) ? "Downloaded" : "Download"}
+                </Text>
+                <Ionicons 
+                  name={checkIfDownloaded(Audio._id || Audio.fileUrl) ? "checkmark-circle" : "download-outline"} 
+                  size={24} 
+                  color={checkIfDownloaded(Audio._id || Audio.fileUrl) ? "#256E63" : "#090E24"} 
+                />
               </TouchableOpacity>
             </View>
           </>

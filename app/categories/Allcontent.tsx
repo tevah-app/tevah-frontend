@@ -21,6 +21,7 @@ import { useGlobalVideoStore } from "../store/useGlobalVideoStore";
 import { useLibraryStore } from "../store/useLibraryStore";
 import { useMediaStore } from "../store/useUploadStore";
 import allMediaAPI from "../utils/allMediaAPI";
+import { convertToDownloadableItem, useDownloadHandler } from "../utils/downloadUtils";
 import { getFavoriteState, getPersistedStats, getViewed, persistStats, persistViewed, toggleFavorite } from "../utils/persistentStorage";
 import { getDisplayName } from "../utils/userValidation";
 
@@ -1065,7 +1066,7 @@ export default function AllContent() {
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => setModalVisible(modalVisible === modalKey ? null : modalKey)}
+            onPress={() => { closeAllMenus(); setModalVisible(modalVisible === modalKey ? null : modalKey); }}
             className="mr-2"
           >
             <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
@@ -1076,12 +1077,12 @@ export default function AllContent() {
         {modalVisible === modalKey && (
           <>
             {/* ✅ Full-screen overlay to close modal when touching outside */}
-            <TouchableWithoutFeedback onPress={() => setModalVisible(null)}>
+            <TouchableWithoutFeedback onPress={closeAllMenus}>
               <View className="absolute inset-0 z-40" />
             </TouchableWithoutFeedback>
             
             {/* ✅ Modal content - removed TouchableWithoutFeedback to allow button interactions */}
-            <View className="absolute bottom-24 right-16 bg-white shadow-md rounded-lg p-3 z-50 w-[170px] h-[140]">
+            <View className="absolute bottom-24 right-16 bg-white shadow-md rounded-lg p-3 z-50 w-[170px] h-[180]">
               <TouchableOpacity className="py-2 border-b border-gray-200 flex-row items-center justify-between">
                 <Text className="text-[#1D2939] font-rubik ml-2">View Details</Text>
                 <Ionicons name="eye-outline" size={22} color="#1D2939" />
@@ -1094,11 +1095,30 @@ export default function AllContent() {
                 <Feather name="send" size={22} color="#1D2939" />
               </TouchableOpacity>
               <TouchableOpacity className="flex-row items-center justify-between mt-6" onPress={() => handleSave(modalKey, video)}>
-                <Text className="text-[#1D2939] font-rubik ml-2">Save to Library</Text>
+                <Text className="text-[#1D2939] font-rubik ml-2">{stats.saved === 1 ? "Remove from Library" : "Save to Library"}</Text>
                 <MaterialIcons
                   name={stats.saved === 1 ? "bookmark" : "bookmark-border"}
                   size={22}
-                  color={stats.saved === 1 ? "#1D2939" : "#1D2939"}
+                  color="#1D2939"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2"
+                onPress={async () => {
+                  const downloadableItem = convertToDownloadableItem(video, 'video');
+                  const result = await handleDownload(downloadableItem);
+                  if (result.success) {
+                    closeAllMenus();
+                  }
+                }}
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">
+                  {checkIfDownloaded(video._id || video.fileUrl) ? "Downloaded" : "Download"}
+                </Text>
+                <Ionicons 
+                  name={checkIfDownloaded(video._id || video.fileUrl) ? "checkmark-circle" : "download-outline"} 
+                  size={24} 
+                  color={checkIfDownloaded(video._id || video.fileUrl) ? "#256E63" : "#090E24"} 
                 />
               </TouchableOpacity>
             </View>
@@ -1303,7 +1323,7 @@ export default function AllContent() {
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => setModalVisible(modalVisible === modalKey ? null : modalKey)}
+            onPress={() => { closeAllMenus(); setModalVisible(modalVisible === modalKey ? null : modalKey); }}
             className="mr-2"
           >
             <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
@@ -1313,7 +1333,7 @@ export default function AllContent() {
         {/* Vertical pop modal, same behavior as video cards */}
         {modalVisible === modalKey && (
           <>
-            <TouchableWithoutFeedback onPress={() => setModalVisible(null)}>
+            <TouchableWithoutFeedback onPress={closeAllMenus}>
               <View className="absolute inset-0 z-40" />
             </TouchableWithoutFeedback>
             <View className="absolute bottom-24 right-16 bg-white shadow-md rounded-lg p-3 z-50 w-[200px] h-[180]">
@@ -1336,9 +1356,25 @@ export default function AllContent() {
                   color="#1D2939"
                 />
               </TouchableOpacity>
-              <TouchableOpacity className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2">
-                <Text className="text-[#1D2939] font-rubik ml-2">Download</Text>
-                <Ionicons name="download-outline" size={24} color="#090E24" />
+              <TouchableOpacity 
+                className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2"
+                onPress={async () => {
+                  const contentType = audio.contentType === 'music' ? 'audio' : audio.contentType;
+                  const downloadableItem = convertToDownloadableItem(audio, contentType as any);
+                  const result = await handleDownload(downloadableItem);
+                  if (result.success) {
+                    closeAllMenus();
+                  }
+                }}
+              >
+                <Text className="text-[#1D2939] font-rubik ml-2">
+                  {checkIfDownloaded(audio._id || audio.fileUrl) ? "Downloaded" : "Download"}
+                </Text>
+                <Ionicons 
+                  name={checkIfDownloaded(audio._id || audio.fileUrl) ? "checkmark-circle" : "download-outline"} 
+                  size={24} 
+                  color={checkIfDownloaded(audio._id || audio.fileUrl) ? "#256E63" : "#090E24"} 
+                />
               </TouchableOpacity>
             </View>
           </>
@@ -1515,7 +1551,7 @@ export default function AllContent() {
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => setModalVisible(modalVisible === modalKey ? null : modalKey)}
+            onPress={() => { closeAllMenus(); setModalVisible(modalVisible === modalKey ? null : modalKey); }}
             className="mr-2"
           >
             <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
@@ -1525,7 +1561,7 @@ export default function AllContent() {
         {/* Modal - matching video layout */}
         {modalVisible === modalKey && (
           <>
-            <TouchableWithoutFeedback onPress={() => setModalVisible(null)}>
+            <TouchableWithoutFeedback onPress={closeAllMenus}>
               <View className="absolute inset-0 z-40" />
             </TouchableWithoutFeedback>
             <View className="absolute bottom-24 right-16 bg-white shadow-md rounded-lg p-3 z-50 w-[170px] h-[140]">
@@ -1570,6 +1606,8 @@ export default function AllContent() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 12 }}
+        onScrollBeginDrag={closeAllMenus}
+        onTouchStart={closeAllMenus}
       >
         {items.map((item, index) => {
           const modalKey = `mini-${item._id || index}`;
@@ -1717,7 +1755,7 @@ export default function AllContent() {
               {/* Modal for mini card actions */}
               {modalIndex === index && (
                 <>
-                  <TouchableWithoutFeedback onPress={() => setModalIndex(null)}>
+                  <TouchableWithoutFeedback onPress={closeAllMenus}>
                     <View className="absolute inset-0 z-40" />
                   </TouchableWithoutFeedback>
                   <View className="absolute bottom-14 right-3 bg-white shadow-lg rounded-lg p-3 z-50 w-[160px] h-[180px] border border-gray-100">
@@ -1745,6 +1783,28 @@ export default function AllContent() {
                         color="#1D2939"
                       />
                     </TouchableOpacity>
+                    <TouchableOpacity 
+                      className="py-2 flex-row items-center justify-between border-t border-gray-200 mt-2"
+                      onPress={async () => {
+                        const contentType = item.contentType === 'music' ? 'audio' : 
+                                          item.contentType === 'sermon' ? (item.fileUrl?.includes('.mp4') ? 'video' : 'audio') : 
+                                          item.contentType;
+                        const downloadableItem = convertToDownloadableItem(item, contentType as any);
+                        const result = await handleDownload(downloadableItem);
+                        if (result.success) {
+                          closeAllMenus();
+                        }
+                      }}
+                    >
+                      <Text className="text-[#1D2939] font-rubik-medium ml-2">
+                        {checkIfDownloaded(item._id || item.fileUrl) ? "Downloaded" : "Download"}
+                      </Text>
+                      <Ionicons 
+                        name={checkIfDownloaded(item._id || item.fileUrl) ? "checkmark-circle" : "download-outline"} 
+                        size={24} 
+                        color={checkIfDownloaded(item._id || item.fileUrl) ? "#256E63" : "#090E24"} 
+                      />
+                    </TouchableOpacity>
                   </View>
                 </>
               )}
@@ -1759,7 +1819,7 @@ export default function AllContent() {
                     {getDisplayName(item.speaker, item.uploadedBy)}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => setModalIndex(modalIndex === index ? null : index)}
+                    onPress={() => { closeAllMenus(); setModalIndex(modalIndex === index ? null : index); }}
                     className="ml-2"
                   >
                     <Ionicons name="ellipsis-vertical" size={14} color="#9CA3AF" />
@@ -1784,10 +1844,23 @@ export default function AllContent() {
   const [trendingModalIndex, setTrendingModalIndex] = useState<number | null>(null);
   const [recommendedModalIndex, setRecommendedModalIndex] = useState<number | null>(null);
 
+  // Download functionality
+  const { handleDownload, checkIfDownloaded } = useDownloadHandler();
+
+  // Close all open menus/popovers across the component
+  const closeAllMenus = () => {
+    setModalVisible(null);
+    setPreviouslyViewedModalIndex(null);
+    setTrendingModalIndex(null);
+    setRecommendedModalIndex(null);
+  };
+
   return (
     <ScrollView 
       ref={scrollViewRef}
       className="flex-1"
+      onScrollBeginDrag={closeAllMenus}
+      onTouchStart={closeAllMenus}
       onScroll={handleScroll}
       onScrollEndDrag={() => {
         // Recompute at drag end to ensure correct active video when user stops scrolling
